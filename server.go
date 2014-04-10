@@ -13,7 +13,7 @@ import (
 
 const (
 	DEFAULT_ADDR = "127.0.0.1:1200"
-        MAX_USR         = 50000
+	MAX_USR      = 50000
 	MAX_CONN     = 5000
 )
 
@@ -26,10 +26,10 @@ type Message struct {
 }
 
 type User struct {
-        Alias   string
-        Address *net.UDPAddr
-        Online bool
-        Blocked []string
+	Alias   string
+	Address *net.UDPAddr
+	Online  bool
+	Blocked []string
 }
 
 // Global
@@ -39,7 +39,7 @@ var connections map[string]User
 
 func init() {
 	users = make(map[string]User, MAX_USR)
-        connections = make(map[string]User, MAX_CONN)
+	connections = make(map[string]User, MAX_CONN)
 }
 
 func main() {
@@ -113,20 +113,20 @@ func handle(conn *net.UDPConn) <-chan Message {
 		if err != nil {
 			// Assume he went offline
 			log.Println("Couldn't write message ", string(msg), "to ", message.Sender)
-                        // TODO just do this if you are server
-                        disconnectUser(message.Sender)
+			// TODO just do this if you are server
+			disconnectUser(message.Sender)
 
 		}
 		// TODO Only servers care about this
 		// Discover new connections
-                var usr User
+		var usr User
 		user, ok := isConnected(message.Sender)
 		if !ok {
 			// Means we haven't seen him before
 			fmt.Println("Registring new user", message.Sender)
 			usr = registerUser(message.Sender)
 		} else {
-                        usr = user
+			usr = user
 			fmt.Println("User already connected", usr)
 		}
 
@@ -139,19 +139,19 @@ func isConnected(who *net.UDPAddr) (User, bool) {
 }
 
 func registerUser(who *net.UDPAddr) User {
-        // TODO Get user login, probably with a login message
-        alias := "Pepito"
+	// TODO Get user login, probably with a login message
+	alias := "Pepito"
 
-        // Check that he doesn't exist already
-        // _, ok := users[alias]
-        usr := User{alias, who, true, make([]string, 10)}
+	// Check that he doesn't exist already
+	// _, ok := users[alias]
+	usr := User{alias, who, true, make([]string, 10)}
 	users[alias] = usr
-        connections[who.String()] = usr
-        return usr
+	connections[who.String()] = usr
+	return usr
 }
 
 func disconnectUser(who *net.UDPAddr) {
-        delete(connections, who.String())
+	delete(connections, who.String())
 }
 
 func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
