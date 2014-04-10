@@ -151,6 +151,11 @@ func registerUser(who *net.UDPAddr) User {
 }
 
 func disconnectUser(who *net.UDPAddr) {
+        usr, ok = connections[who.String()]
+        if ok {
+                // User already known, set as offline
+                usr.Online = false
+        }
 	delete(connections, who.String())
 }
 
