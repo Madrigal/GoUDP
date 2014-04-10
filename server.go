@@ -16,6 +16,14 @@ const (
 	MAX_CONN     = 5000
 )
 
+// Each incoming connection will have a message with whatever they want to send
+// and who sent it
+type Message struct {
+	Content   []byte
+	Sender    *net.UDPAddr
+	Timestamp time.Time
+}
+
 // Global
 // Now just a map of addresses
 var users map[string]net.UDPAddr
@@ -77,14 +85,6 @@ func getUserInput() {
 // TODO this should probably get the connection too
 func handleUserInput(line string) {
 	fmt.Println(strings.TrimRight(line, "\n"))
-}
-
-// Each incoming connection will have a message with whatever they want to send
-// and who sent it
-type Message struct {
-	Content   []byte
-	Sender    *net.UDPAddr
-	Timestamp time.Time
 }
 
 // TODO handle should know what to do when you need to become the server
