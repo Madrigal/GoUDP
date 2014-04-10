@@ -5,6 +5,9 @@ import (
         "log"
         "fmt"
         "time"
+        "bufio"
+        "os"
+        "strings"
 )
 
 func main() {
@@ -28,18 +31,29 @@ func main() {
         }
         log.Println("Got a connection")
         defer conn.Close()
-
-        read := listen(conn)
+        go getUserInput()
+        read := handle(conn)
         for {
-
-                message := <- read
-                if message.Content != nil {
-                        fmt.Println("Content", string(message.Content))
-                        fmt.Println("From address", *message.Sender)
-                        fmt.Println("In time", message.Timestamp)
-                }
+                fmt.Println(read)
         }
+}
 
+//This is going to be on the main loop and will basically be our user interface
+func getUserInput() {
+        reader := bufio.NewReader(os.Stdin)
+        for {
+                line, err := reader.ReadString('\n')
+                if err != nil {
+                        log.Println("Error reading from stdin")
+                        continue
+                }
+                handleUserInput(line)
+        }
+}
+
+// TODO this should probably get the connection too
+func handleUserInput(line string) {
+        fmt.Println(strings.TrimRight(line, "\n"))
 }
 
 // Each incoming connection will have a message with whatever they want to send
@@ -50,9 +64,22 @@ type Message struct {
         Timestamp time.Time
 }
 
+// TODO handle should know what to do when you need to become the server
+func handle(conn *net.UDPConn) <-chan Message {
+        read := listen(conn)
+        for {
+                message := <- read
+                if message.Content != nil {
+                        fmt.Println("Content", string(message.Content))
+                        fmt.Println("From address", *message.Sender)
+                        fmt.Println("In time", message.Timestamp)
+
+                }
+        }
+}
+
 func listen(conn *net.UDPConn) <-chan Message {
         c := make(chan Message)
-
         go func() {
                 buff := make([]byte, 1024)
 
@@ -64,7 +91,6 @@ func listen(conn *net.UDPConn) <-chan Message {
 
                                 // Trim newline
                                 if (string(buff[n-1]) == "\n") {
-                                        fmt.Println("New line at the end")
                                         copy(res, buff[:n-1])
                                 } else {
                                         copy(res, buff[:n])
@@ -82,6 +108,5 @@ func listen(conn *net.UDPConn) <-chan Message {
                         }
                  }
         }()
-
         return c
 }
