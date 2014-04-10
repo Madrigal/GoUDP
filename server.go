@@ -13,7 +13,16 @@ import (
 
 const (
 	DEFAULT_ADDR = "127.0.0.1:1200"
+	MAX_CONN     = 5000
 )
+
+// Global
+// Now just a map of addresses
+var users map[string]net.UDPAddr
+
+func init() {
+	users = make(map[string]net.UDPAddr, MAX_CONN)
+}
 
 func main() {
 
@@ -89,9 +98,33 @@ func handle(conn *net.UDPConn) <-chan Message {
 		fmt.Println("Content", string(message.Content))
 		fmt.Println("From address", *message.Sender)
 		fmt.Println("In time", message.Timestamp)
+		msg := []byte("OK")
+		err := sendConfirmation(conn, message.Sender, msg)
+		if err != nil {
+			// For now just log this
+			log.Println("Couldn't write message ", string(msg), "to ", message.Sender)
+		}
+		// TODO Only servers care about this
+		// Discover new connections
+		usr, ok := getUser(message.Sender)
+		if !ok {
+			// Means we haven't seen it before
+			fmt.Println("Registring new user", message.Sender)
+			registerUser(message.Sender)
+		} else {
+			fmt.Println("User already connected", usr)
+		}
 
-		sendConfirmation(conn, message.Sender, []byte("OK"))
 	}
+}
+
+func getUser(who *net.UDPAddr) (net.UDPAddr, bool) {
+	val, ok := users[who.String()]
+	return val, ok
+}
+
+func registerUser(who *net.UDPAddr) {
+	users[who.String()] = *who
 }
 
 func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
