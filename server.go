@@ -4,6 +4,7 @@ import (
         "net"
         "log"
         "fmt"
+        "time"
 )
 
 func main() {
@@ -35,6 +36,7 @@ func main() {
                 if message.Content != nil {
                         fmt.Println("Content", string(message.Content))
                         fmt.Println("From address", *message.Sender)
+                        fmt.Println("In time", message.Timestamp)
                 }
         }
 
@@ -45,6 +47,7 @@ func main() {
 type Message struct {
         Content []byte
         Sender *net.UDPAddr
+        Timestamp time.Time
 }
 
 func listen(conn *net.UDPConn) <-chan Message {
@@ -61,11 +64,13 @@ func listen(conn *net.UDPConn) <-chan Message {
                                 copy(res, buff[:n])
 
                                 // Create the message
-                                m := Message{Content: res, Sender: addr}
+                                m := Message{Content: res,
+                                 Sender: addr,
+                                 Timestamp: time.Now()}
                                 c <- m
                         }
                         if err != nil {
-                                c <- Message{nil, nil}
+                                c <- Message{nil, nil, time.Now()}
                                 break
                         }
                  }
