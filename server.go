@@ -61,7 +61,14 @@ func listen(conn *net.UDPConn) <-chan Message {
                         if n > 0 && addr != nil{
                                 // Copy the response
                                 res := make([]byte, n)
-                                copy(res, buff[:n])
+
+                                // Trim newline
+                                if (string(buff[n-1]) == "\n") {
+                                        fmt.Println("New line at the end")
+                                        copy(res, buff[:n-1])
+                                } else {
+                                        copy(res, buff[:n])
+                                }
 
                                 // Create the message
                                 m := Message{Content: res,
