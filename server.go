@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-        "errors"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -11,9 +11,22 @@ import (
 	"time"
 )
 
+const (
+	DEFAULT_ADDR = "127.0.0.1:1200"
+)
+
 func main() {
 
-	port := "127.0.0.1:1200"
+	var port string
+
+	if len(os.Args) == 2 {
+		// Override default port
+		port = os.Args[1]
+	} else {
+		fmt.Println("You can change the default port passing as argument host:port")
+		fmt.Println("e.g. 127.0.0.1:9000")
+		port = DEFAULT_ADDR
+	}
 
 	udpAddress, err := net.ResolveUDPAddr("udp4", port)
 
@@ -30,7 +43,7 @@ func main() {
 		log.Println(err)
 		return
 	}
-	log.Println("Got a connection")
+	log.Println("Listening on ", udpAddress)
 	defer conn.Close()
 	go getUserInput()
 	read := handle(conn)
@@ -71,27 +84,27 @@ func handle(conn *net.UDPConn) <-chan Message {
 	for {
 		message := <-read
 		if message.Content == nil {
-                        continue
+			continue
 		}
-                fmt.Println("Content", string(message.Content))
-                fmt.Println("From address", *message.Sender)
-                fmt.Println("In time", message.Timestamp)
+		fmt.Println("Content", string(message.Content))
+		fmt.Println("From address", *message.Sender)
+		fmt.Println("In time", message.Timestamp)
 
-                sendConfirmation(conn, message.Sender, []byte("OK"))
+		sendConfirmation(conn, message.Sender, []byte("OK"))
 	}
 }
 
 func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
-        retriesLeft := 3
-        // Send confirmation
-        for retriesLeft > 0 {
-                _, err := conn.WriteTo(msg, whom)
-                if err == nil {
-                       return nil
-                }
-                time.Sleep(time.Millisecond * 200)
-        }
-        return errors.New("Couldn't send confirmation")
+	retriesLeft := 3
+	// Send confirmation
+	for retriesLeft > 0 {
+		_, err := conn.WriteTo(msg, whom)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(time.Millisecond * 200)
+	}
+	return errors.New("Couldn't send confirmation")
 }
 
 func listen(conn *net.UDPConn) <-chan Message {
