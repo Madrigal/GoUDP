@@ -32,8 +32,9 @@ func main() {
         for {
 
                 message := <- read
-                if message != nil {
-                        fmt.Println("From main:", string(message))
+                if message.Content != nil {
+                        fmt.Println("Content", string(message.Content))
+                        fmt.Println("From address", *message.Sender)
                 }
         }
 
@@ -46,21 +47,25 @@ type Message struct {
         Sender *net.UDPAddr
 }
 
-func listen(conn *net.UDPConn) <-chan []byte {
-        c := make(chan []byte)
+func listen(conn *net.UDPConn) <-chan Message {
+        c := make(chan Message)
 
         go func() {
                 buff := make([]byte, 1024)
 
                 for {
-                        n, _, err := conn.ReadFromUDP(buff)
-                        if n > 0 {
+                        n, addr, err := conn.ReadFromUDP(buff)
+                        if n > 0 && addr != nil{
+                                // Copy the response
                                 res := make([]byte, n)
                                 copy(res, buff[:n])
-                                c <- res
+
+                                // Create the message
+                                m := Message{Content: res, Sender: addr}
+                                c <- m
                         }
                         if err != nil {
-                                c <- nil
+                                c <- Message{nil, nil}
                                 break
                         }
                  }
