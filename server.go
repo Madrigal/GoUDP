@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+        "errors"
 	"fmt"
 	"log"
 	"net"
@@ -69,12 +70,28 @@ func handle(conn *net.UDPConn) <-chan Message {
 	read := listen(conn)
 	for {
 		message := <-read
-		if message.Content != nil {
-			fmt.Println("Content", string(message.Content))
-			fmt.Println("From address", *message.Sender)
-			fmt.Println("In time", message.Timestamp)
+		if message.Content == nil {
+                        continue
 		}
+                fmt.Println("Content", string(message.Content))
+                fmt.Println("From address", *message.Sender)
+                fmt.Println("In time", message.Timestamp)
+
+                sendConfirmation(conn, message.Sender, []byte("OK"))
 	}
+}
+
+func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
+        retriesLeft := 3
+        // Send confirmation
+        for retriesLeft > 0 {
+                _, err := conn.WriteTo(msg, whom)
+                if err == nil {
+                       return nil
+                }
+                time.Sleep(time.Millisecond * 200)
+        }
+        return errors.New("Couldn't send confirmation")
 }
 
 func listen(conn *net.UDPConn) <-chan Message {
