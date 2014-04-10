@@ -3,6 +3,7 @@ package main
 import (
         "net"
         "log"
+        "fmt"
 )
 
 func main() {
@@ -27,33 +28,43 @@ func main() {
         log.Println("Got a connection")
         defer conn.Close()
 
-        var buf []byte = make([]byte, 1500)
-
+        read := listen(conn)
         for {
-                n,address, err := conn.ReadFromUDP(buf)
 
-                if err != nil {
-                        log.Println("error reading data from connection")
-                        log.Println(err)
-                        return
-                }
-
-                if address != nil {
-
-                        log.Println("got message from ", address, " with n = ", n)
-
-                        if n > 0 {
-                                log.Println("from address", address, "got message:", string(buf[0:n]), n)
-                        }
-
-                        // Write ack to the client
-                        _, err := conn.WriteTo([]byte("Todo OK"), address)
-                        if err != nil {
-                                log.Println("error writing data to client")
-                                log.Println(err)
-                        }
-                        log.Println("Wrote to client")
+                message := <- read
+                if message != nil {
+                        fmt.Println("From main:", string(message))
                 }
         }
 
+}
+
+// Each incoming connection will have a message with whatever they want to send
+// and who sent it
+type Message struct {
+        Content []byte
+        Sender *net.UDPAddr
+}
+
+func listen(conn *net.UDPConn) <-chan []byte {
+        c := make(chan []byte)
+
+        go func() {
+                buff := make([]byte, 1024)
+
+                for {
+                        n, _, err := conn.ReadFromUDP(buff)
+                        if n > 0 {
+                                res := make([]byte, n)
+                                copy(res, buff[:n])
+                                c <- res
+                        }
+                        if err != nil {
+                                c <- nil
+                                break
+                        }
+                 }
+        }()
+
+        return c
 }
