@@ -12,9 +12,12 @@ import (
 )
 
 const (
-	DEFAULT_ADDR = "127.0.0.1:1200"
-	MAX_USR      = 50000
-	MAX_CONN     = 5000
+	DEFAULT_ADDR        = "127.0.0.1:1200"
+	MAX_USR             = 50000
+	MAX_CONN            = 5000
+	MILIS_BETWEEN_RETRY = 200
+	MAX_RETRY           = 3
+	BLOCKED_INITIAL     = 10
 )
 
 // Each incoming connection will have a message with whatever they want to send
@@ -144,30 +147,30 @@ func registerUser(who *net.UDPAddr) User {
 
 	// Check that he doesn't exist already
 	// _, ok := users[alias]
-	usr := User{alias, who, true, make([]string, 10)}
+	usr := User{alias, who, true, make([]string, BLOCKED_INITIAL)}
 	users[alias] = usr
 	connections[who.String()] = usr
 	return usr
 }
 
 func disconnectUser(who *net.UDPAddr) {
-        usr, ok = connections[who.String()]
-        if ok {
-                // User already known, set as offline
-                usr.Online = false
-        }
+	usr, ok = connections[who.String()]
+	if ok {
+		// User already known, set as offline
+		usr.Online = false
+	}
 	delete(connections, who.String())
 }
 
 func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
-	retriesLeft := 3
+	MAX_RETRY := 3
 	// Send confirmation
 	for retriesLeft > 0 {
 		_, err := conn.WriteTo(msg, whom)
 		if err == nil {
 			return nil
 		}
-		time.Sleep(time.Millisecond * 200)
+		time.Sleep(time.Millisecond * MILIS_BETWEEN_RETRY)
 	}
 	return errors.New("Couldn't send confirmation")
 }
