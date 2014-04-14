@@ -163,7 +163,7 @@ func disconnectUser(who *net.UDPAddr) {
 }
 
 func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
-	MAX_RETRY := 3
+	retriesLeft := 3
 	// Send confirmation
 	for retriesLeft > 0 {
 		_, err := conn.WriteTo(msg, whom)
@@ -171,6 +171,7 @@ func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
 			return nil
 		}
 		time.Sleep(time.Millisecond * MILIS_BETWEEN_RETRY)
+		retriesLeft--
 	}
 	return errors.New("Couldn't send confirmation")
 }
@@ -197,9 +198,11 @@ func listen(conn *net.UDPConn) <-chan Message {
 				m := Message{Content: res,
 					Sender:    addr,
 					Timestamp: time.Now()}
+				// Send to the channel
 				c <- m
 			}
 			if err != nil {
+				// If it fails send a nil message
 				c <- Message{nil, nil, time.Now()}
 				break
 			}
