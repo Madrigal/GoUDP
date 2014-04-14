@@ -71,7 +71,7 @@ func main() {
 	}
 	log.Println("Listening on ", udpAddress)
 	defer conn.Close()
-	go getUserInput()
+	go getUserInput(conn)
 	read := handle(conn)
 	for {
 		fmt.Println(read)
@@ -79,7 +79,7 @@ func main() {
 }
 
 //This is going to be on the main loop and will basically be our user interface
-func getUserInput() {
+func getUserInput(conn *net.UDPConn) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		line, err := reader.ReadString('\n')
@@ -87,13 +87,14 @@ func getUserInput() {
 			log.Println("Error reading from stdin")
 			continue
 		}
-		handleUserInput(line)
+		handleUserInput(conn, line)
 	}
 }
 
 // TODO this should probably get the connection too
-func handleUserInput(line string) {
-	fmt.Println(strings.TrimRight(line, "\n"))
+func handleUserInput(conn *net.UDPConn, line string) {
+	line = strings.TrimRight(line, "\n")
+	fmt.Println(line)
 }
 
 // TODO handle should know what to do when you need to become the server
@@ -154,7 +155,7 @@ func amITheServer() bool {
 }
 
 func disconnectUser(who *net.UDPAddr) {
-	usr, ok = connections[who.String()]
+	usr, ok := connections[who.String()]
 	if ok {
 		// User already known, set as offline
 		usr.Online = false
