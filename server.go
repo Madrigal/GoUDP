@@ -88,9 +88,11 @@ func client(port string) {
 }
 
 //This is going to be on the main loop and will basically be our user interface
+// TODO This address is going to change when we change the server
 func getUserInput(conn *net.UDPConn) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
+
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			log.Println("Error reading from stdin")
@@ -100,11 +102,54 @@ func getUserInput(conn *net.UDPConn) {
 	}
 }
 
-// TODO this should probably get the connection too
 func handleUserInput(conn *net.UDPConn, line string) {
 	line = strings.TrimRight(line, "\n")
 	fmt.Println("Hey", line)
 	conn.Write([]byte(line))
+}
+
+func firstRun(conn *net.UDPConn, rd *io.Reader) {
+	// Get the user to authenticate with the server
+	for {
+		fmt.Println("Welcome to the server. Please choose a nickname")
+		nickname, err := rd.ReadString('\n')
+		if err != nil {
+			fmt.Println("Something went wrong reading your input. Try again")
+			log.Println("Error on user input", err)
+			continue
+		}
+		err := sendLogin(conn, nickname)
+	}
+}
+
+func sendLogin(conn *net.UDPConn, nickname string) {
+
+}
+
+func getUserOption(rd *io.Reader) opt int{
+	// Keep asking until we got a correct input
+	for {
+		fmt.Println("Welcome to the server. Tell us what you want to do: ")
+		fmt.Println("1: Send broadcast")
+		fmt.Println("2: Send private message")
+		fmt.Println("3: Get connected users")
+		fmt.Println("4: Publish status to FB")
+		fmt.Println("5: Exit")
+		in, err := rd.ReadString('\n')
+		if err != nil {
+			fmt.Println("Something went wrong reading your input. Try again")
+			log.Println("Error on user input", err)
+			continue
+		}
+		opt, err := strconv.Atoi(in)
+		if err != nil {
+			fmt.Println("Couldn't get a number from what you wrote", err)
+			log.Println("Error in atoi", err)
+			continue
+		}
+		// TODO check that it is between our options
+		return
+	}
 }
 
 // TODO handle should know what to do when you need to become the server
