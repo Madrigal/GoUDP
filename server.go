@@ -61,17 +61,13 @@ func main() {
 	udpAddress, err := net.ResolveUDPAddr("udp4", port)
 
 	if err != nil {
-		log.Println("error resolving UDP address on ", port)
-		log.Println(err)
-		return
+		log.Fatal("error resolving UDP address on ", port, err)
 	}
 
 	conn, err := net.ListenUDP("udp", udpAddress)
 
 	if err != nil {
-		log.Println("error listening on UDP port ", port)
-		log.Println(err)
-		return
+		log.Fatal("error listening on UDP port ", port, err)
 	}
 	log.Println("Listening on ", udpAddress)
 	defer conn.Close()
@@ -151,6 +147,10 @@ func registerUser(who *net.UDPAddr) User {
 	users[alias] = usr
 	connections[who.String()] = usr
 	return usr
+}
+
+func amITheServer() bool {
+	return true
 }
 
 func disconnectUser(who *net.UDPAddr) {
