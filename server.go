@@ -71,11 +71,20 @@ func main() {
 	}
 	log.Println("Listening on ", udpAddress)
 	defer conn.Close()
-	go getUserInput(conn)
+	go client(port)
 	read := handle(conn)
 	for {
 		fmt.Println(read)
 	}
+}
+
+func client(port string) {
+	conn, err := net.Dial("udp", port)
+	if err != nil {
+		// TODO Probably retry
+		log.Fatal("Couldn't connect to port", port, err)
+	}
+	go getUserInput(conn.(*net.UDPConn))
 }
 
 //This is going to be on the main loop and will basically be our user interface
@@ -94,7 +103,8 @@ func getUserInput(conn *net.UDPConn) {
 // TODO this should probably get the connection too
 func handleUserInput(conn *net.UDPConn, line string) {
 	line = strings.TrimRight(line, "\n")
-	fmt.Println(line)
+	fmt.Println("Hey", line)
+	conn.Write([]byte(line))
 }
 
 // TODO handle should know what to do when you need to become the server
