@@ -163,7 +163,7 @@ func disconnectUser(who *net.UDPAddr) {
 }
 
 func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
-	retriesLeft := 3
+	retriesLeft := MAX_RETRY
 	// Send confirmation
 	for retriesLeft > 0 {
 		_, err := conn.WriteTo(msg, whom)
