@@ -5,3 +5,6 @@ all: server
 
 server:
 	go run src/server.go
+
+example:
+	go run src/examples/weather.go

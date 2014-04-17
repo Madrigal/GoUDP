@@ -8,5 +8,4 @@
 
 # For later
 - Synch clocks
-- Get weather from web service
 - Connect with FB
