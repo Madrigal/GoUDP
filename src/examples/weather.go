@@ -3,6 +3,19 @@ package main
 import "fmt"
 import "encoding/json"
 
+type Weather struct {
+	Data `json:"weather"`
+}
+
+type Data struct {
+	Name     string  `json:"name"`
+	Temp     float32 `json:"temp"`
+	Humidity int     `json:"humidity"`
+	Pressure int     `json:"pressure"`
+	TempMin  float32 `json:"temp_min"`
+	TempMax  int     `json:"temp_max"`
+}
+
 type ValidAddresses struct {
 	Coord struct {
 		Lon float32 `json:"lon"`
@@ -90,4 +103,22 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println(t.Main)
+	fmt.Println(t.Name)
+
+	fmt.Println(Convert(*t))
+}
+
+// Convert transform OpenWeather info to relevant info
+func Convert(t ValidAddresses) Weather {
+	w := Weather{
+		Data{
+			Name:     t.Name,
+			Temp:     t.Main.Temp,
+			Humidity: t.Main.Humidity,
+			Pressure: t.Main.Pressure,
+			TempMin:  t.Main.TempMin,
+			TempMax:  t.Main.TempMax,
+		},
+	}
+	return w
 }
