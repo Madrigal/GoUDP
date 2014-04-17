@@ -50,6 +50,7 @@ func init() {
 func main() {
 
 	var port string
+	fmt.Println(message.newLogin("Test"))
 
 	if len(os.Args) == 2 {
 		// Override default port
