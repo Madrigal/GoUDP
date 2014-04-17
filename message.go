@@ -1,113 +1,124 @@
 package message
 
 import (
-    "encoding/xml"
+	"encoding/xml"
 )
 
 const (
-    LOGIN = "Login"
-    BROAD = "Broadcast"
-    DM = "DirectMessage"
-    GET_CONN = "GetConnected"
-    EXIT = "Exit"
+	LOGIN    = "Login"
+	BROAD    = "Broadcast"
+	DM       = "DirectMessage"
+	GET_CONN = "GetConnected"
+	EXIT     = "Exit"
 )
 
 type Base struct {
-    XMLName xml.Name `xml:"Root"`
-    Type string `xml:"Type"`
+	Type string `xml:"Type"`
 }
 
 // Message sent from the client when he wants to login
 type Login struct {
-    Base
-    Nickname string `xml:"Nickname"`
+	XMLName xml.Name `xml:"Root"`
+	Base
+	Nickname string `xml:"Nickname"`
 }
 
 // Message a user sends to server. It covers both
 // Broadcast and direct message
 type UMessage struct {
-    Base
-    To string `xml:"To"`
-    Message string `xml:"Message"`
+	XMLName xml.Name `xml:"Root"`
+	Base
+	To      string `xml:"To"`
+	Message string `xml:"Message"`
 }
 
 // Message the server will sent to a user
 type SMessage struct {
-    Base
-    From string `xml:"From"`
-    Message string `xml:"Message"`
+	XMLName xml.Name `xml:"Root"`
+	Base
+	From    string `xml:"From"`
+	Message string `xml:"Message"`
 }
 
 // When the user request connected users, he will
 // only specify that as type. Hence no need for more fields
 type UGetConnected struct {
-    Base
+	XMLName xml.Name `xml:"Root"`
+	Base
 }
 
 type SGetConnected struct {
-    Base
-    Users []GetConnUser `xml:"users"`
+	Base
+	XMLName xml.Name `xml:"Root"`
+	Users   Users
+}
+
+type Users struct {
+	XMLName   xml.Name
+	ConnUsers []GetConnUser `xml:"User"`
 }
 
 type GetConnUser struct {
-    Id string `xml:"user"`
+	Id string `xml:",innerxml"`
 }
 
 // Since user will only specify exit no extra fields are needed
 type UExit struct {
-    Base
+	XMLName xml.Name `xml:"Root"`
+	Base
 }
 
 ///// Client calls
 func newLogin(nickname string) Login {
-    base := Base{Type: LOGIN}
-    login := Login{base, nickname}
-    return login
+	base := Base{Type: LOGIN}
+	login := Login{Base: base, Nickname: nickname}
+	return login
 }
 
 func newBroadcast(msg string) UMessage {
-    base := Base{Type: BROAD}
-    message := UMessage{base, "", msg}
-    return message
+	base := Base{Type: BROAD}
+	message := UMessage{Base: base, To: "", Message: msg}
+	return message
 }
 
 func newDirectMessage(to string, msg string) UMessage {
-    base := Base{Type: DM}
-    message := UMessage{base, to, msg}
-    return message
+	base := Base{Type: DM}
+	message := UMessage{Base: base, To: to, Message: msg}
+	return message
 }
 
-func newGetConnected() UGetConnected {
-    base := Base{Type: GET_CONN}
-    getConn := SGetConnected{base}
-    return getConn
+func newUGetConnected() UGetConnected {
+	base := Base{Type: GET_CONN}
+	getConn := UGetConnected{Base: base}
+	return getConn
 }
 
 func newExit() UExit {
-    base := Base{Type: EXIT}
-    exit := UExit{base}
-    return exit
+	base := Base{Type: EXIT}
+	exit := UExit{Base: base}
+	return exit
 }
 
 ///// Server calls
-func newSBroadcast (from string, msg string) SMessage {
-    base := Base{Type: BROAD}
-    message := SMessage{base, from, msg}
-    return message
+func newSBroadcast(from string, msg string) SMessage {
+	base := Base{Type: BROAD}
+	message := SMessage{Base: base, From: from, Message: msg}
+	return message
 }
 
-func newSDirectMessage (from string, msg string) SMessage {
-    base := Base{Type: DM}
-    message := SMessage{base, from, msg}
-    return message
+func newSDirectMessage(from string, msg string) SMessage {
+	base := Base{Type: DM}
+	message := SMessage{Base: base, From: from, Message: msg}
+	return message
 }
 
-func newGetConnected(ids []string) SGetConnected {
-    base := Base{Type: GET_CONN}
-    users []GetConnUser
-    for _, id := range ids {
-        users.append(GetConnUser{id})
-    }
-    getConn := SGetConnected{base, users}
-    return getConn
+func newSGetConnected(ids []string) SGetConnected {
+	base := Base{Type: GET_CONN}
+	users := make([]GetConnUser, len(ids))
+	for i, id := range ids {
+		users[i] = GetConnUser{Id: id}
+	}
+	u := Users{ConnUsers: users}
+	getConn := SGetConnected{Base: base, Users: u}
+	return getConn
 }
