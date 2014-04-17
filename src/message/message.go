@@ -69,50 +69,50 @@ type UExit struct {
 }
 
 ///// Client calls
-func newLogin(nickname string) Login {
+func NewLogin(nickname string) Login {
 	base := Base{Type: LOGIN}
 	login := Login{Base: base, Nickname: nickname}
 	return login
 }
 
-func newBroadcast(msg string) UMessage {
+func NewBroadcast(msg string) UMessage {
 	base := Base{Type: BROAD}
 	message := UMessage{Base: base, To: "", Message: msg}
 	return message
 }
 
-func newDirectMessage(to string, msg string) UMessage {
+func NewDirectMessage(to string, msg string) UMessage {
 	base := Base{Type: DM}
 	message := UMessage{Base: base, To: to, Message: msg}
 	return message
 }
 
-func newUGetConnected() UGetConnected {
+func NewUGetConnected() UGetConnected {
 	base := Base{Type: GET_CONN}
 	getConn := UGetConnected{Base: base}
 	return getConn
 }
 
-func newExit() UExit {
+func NewExit() UExit {
 	base := Base{Type: EXIT}
 	exit := UExit{Base: base}
 	return exit
 }
 
 ///// Server calls
-func newSBroadcast(from string, msg string) SMessage {
+func NewSBroadcast(from string, msg string) SMessage {
 	base := Base{Type: BROAD}
 	message := SMessage{Base: base, From: from, Message: msg}
 	return message
 }
 
-func newSDirectMessage(from string, msg string) SMessage {
+func NewSDirectMessage(from string, msg string) SMessage {
 	base := Base{Type: DM}
 	message := SMessage{Base: base, From: from, Message: msg}
 	return message
 }
 
-func newSGetConnected(ids []string) SGetConnected {
+func NewSGetConnected(ids []string) SGetConnected {
 	base := Base{Type: GET_CONN}
 	users := make([]GetConnUser, len(ids))
 	for i, id := range ids {
