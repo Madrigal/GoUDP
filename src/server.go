@@ -42,6 +42,10 @@ type User struct {
 var users map[string]User
 var connections map[string]User
 
+// This really simplifies things, although is kind of ugly
+var serverConn *net.UDPConn
+var clientConn *net.UDPConn
+
 func init() {
 	users = make(map[string]User, MAX_USR)
 	connections = make(map[string]User, MAX_CONN)
@@ -72,10 +76,11 @@ func main() {
 	if err != nil {
 		log.Fatal("error listening on UDP port ", port, err)
 	}
+	serverConn = conn
 	log.Println("Listening on ", udpAddress)
 	defer conn.Close()
 	go client(port)
-	read := handle(conn)
+	read := handle()
 	for {
 		fmt.Println(read)
 	}
@@ -87,12 +92,13 @@ func client(port string) {
 		// TODO Probably retry
 		log.Fatal("Couldn't connect to port", port, err)
 	}
-	go getUserInput(conn.(*net.UDPConn))
+	clientConn = conn.(*net.UDPConn)
+	go getUserInput()
 }
 
 //This is going to be on the main loop and will basically be our user interface
 // TODO This address is going to change when we change the server
-func getUserInput(conn *net.UDPConn) {
+func getUserInput() {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 
@@ -101,17 +107,17 @@ func getUserInput(conn *net.UDPConn) {
 			log.Println("Error reading from stdin")
 			continue
 		}
-		handleUserInput(conn, line)
+		handleUserInput(line)
 	}
 }
 
-func handleUserInput(conn *net.UDPConn, line string) {
+func handleUserInput(line string) {
 	line = strings.TrimRight(line, "\n")
 	fmt.Println("Hey", line)
-	conn.Write([]byte(line))
+	clientConn.Write([]byte(line))
 }
 
-func firstRun(conn *net.UDPConn, rd *bufio.Reader) {
+func firstRun(rd *bufio.Reader) {
 	// Get the user to authenticate with the server
 	for {
 		fmt.Println("Welcome to the server. Please choose a nickname")
@@ -121,11 +127,11 @@ func firstRun(conn *net.UDPConn, rd *bufio.Reader) {
 			log.Println("Error on user input", err)
 			continue
 		}
-		sendLogin(conn, nickname)
+		sendLogin(nickname)
 	}
 }
 
-func sendLogin(conn *net.UDPConn, nickname string) {
+func sendLogin(nickname string) {
 
 }
 
@@ -137,7 +143,8 @@ func getUserOption(rd *bufio.Reader) int {
 		fmt.Println("2: Send private message")
 		fmt.Println("3: Get connected users")
 		fmt.Println("4: Publish status to FB")
-		fmt.Println("5: Exit")
+		fmt.Println("5: Block a user")
+		fmt.Println("6: Exit")
 		in, err := rd.ReadString('\n')
 		if err != nil {
 			fmt.Println("Something went wrong reading your input. Try again")
@@ -156,8 +163,8 @@ func getUserOption(rd *bufio.Reader) int {
 }
 
 // TODO handle should know what to do when you need to become the server
-func handle(conn *net.UDPConn) <-chan Message {
-	read := listen(conn)
+func handle() <-chan Message {
+	read := listen()
 	for {
 		message := <-read
 		if message.Content == nil {
@@ -167,7 +174,7 @@ func handle(conn *net.UDPConn) <-chan Message {
 		fmt.Println("From address", *message.Sender)
 		fmt.Println("In time", message.Timestamp)
 		msg := []byte("OK")
-		err := sendConfirmation(conn, message.Sender, msg)
+		err := sendConfirmation(message.Sender, msg)
 		if err != nil {
 			// Assume he went offline
 			log.Println("Couldn't write message ", string(msg), "to ", message.Sender)
@@ -221,11 +228,11 @@ func disconnectUser(who *net.UDPAddr) {
 	delete(connections, who.String())
 }
 
-func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
+func sendConfirmation(whom *net.UDPAddr, msg []byte) error {
 	retriesLeft := MAX_RETRY
 	// Send confirmation
 	for retriesLeft > 0 {
-		_, err := conn.WriteTo(msg, whom)
+		_, err := serverConn.WriteTo(msg, whom)
 		if err == nil {
 			return nil
 		}
@@ -235,13 +242,13 @@ func sendConfirmation(conn *net.UDPConn, whom *net.UDPAddr, msg []byte) error {
 	return errors.New("Couldn't send confirmation")
 }
 
-func listen(conn *net.UDPConn) <-chan Message {
+func listen() <-chan Message {
 	c := make(chan Message)
 	go func() {
 		buff := make([]byte, 1024)
 
 		for {
-			n, addr, err := conn.ReadFromUDP(buff)
+			n, addr, err := serverConn.ReadFromUDP(buff)
 			if n > 0 && addr != nil {
 				// Copy the response
 				res := make([]byte, n)
