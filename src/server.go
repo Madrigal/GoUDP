@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"log"
@@ -80,7 +81,7 @@ func main() {
 	log.Println("Listening on ", udpAddress)
 	defer conn.Close()
 	go client(port)
-	read := handle()
+	read := handleIncoming()
 	for {
 		fmt.Println(read)
 	}
@@ -132,7 +133,10 @@ func firstRun(rd *bufio.Reader) {
 }
 
 func sendLogin(nickname string) {
-
+	loginMessage := message.NewLogin(nickname)
+	// Send message
+	byteMessage, _ := xml.Marshal(loginMessage)
+	sendToServer(byteMessage)
 }
 
 func getUserOption(rd *bufio.Reader) int {
@@ -163,7 +167,7 @@ func getUserOption(rd *bufio.Reader) int {
 }
 
 // TODO handle should know what to do when you need to become the server
-func handle() <-chan Message {
+func handleIncoming() <-chan Message {
 	read := listen()
 	for {
 		message := <-read
@@ -185,7 +189,7 @@ func handle() <-chan Message {
 		// TODO Only servers care about this
 		// Discover new connections
 		var usr User
-		user, ok := isConnected(message.Sender)
+		user, ok := isUserConnected(message.Sender)
 		if !ok {
 			// Means we haven't seen him before
 			fmt.Println("Registring new user", message.Sender)
@@ -198,7 +202,16 @@ func handle() <-chan Message {
 	}
 }
 
-func isConnected(who *net.UDPAddr) (User, bool) {
+func sendToServer(msg []byte) error {
+	_, err := serverConn.Write(msg)
+	if err != nil {
+		return err
+	}
+	// TODO Wait for confirmation
+	return nil
+}
+
+func isUserConnected(who *net.UDPAddr) (User, bool) {
 	val, ok := connections[who.String()]
 	return val, ok
 }
@@ -216,6 +229,7 @@ func registerUser(who *net.UDPAddr) User {
 }
 
 func amITheServer() bool {
+	// TODO
 	return true
 }
 
@@ -228,6 +242,8 @@ func disconnectUser(who *net.UDPAddr) {
 	delete(connections, who.String())
 }
 
+// sendConfirmation tries to send a confirmation to the user who
+// sent the message. If it doesn't get any confirmation it sends an error
 func sendConfirmation(whom *net.UDPAddr, msg []byte) error {
 	retriesLeft := MAX_RETRY
 	// Send confirmation
@@ -242,6 +258,8 @@ func sendConfirmation(whom *net.UDPAddr, msg []byte) error {
 	return errors.New("Couldn't send confirmation")
 }
 
+// listen handles any incomming connections and writes them to the channel
+// It doesn't deal with confirmation nor validation
 func listen() <-chan Message {
 	c := make(chan Message)
 	go func() {
