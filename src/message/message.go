@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/xml"
+	"errors"
 )
 
 const (
@@ -66,6 +67,85 @@ type GetConnUser struct {
 type UExit struct {
 	XMLName xml.Name `xml:"Root"`
 	Base
+}
+
+// This type will decode an incoming message
+// The UserPackage will hold the actual values
+type UserMessage struct {
+	Base
+	Data interface{}
+}
+
+type UserPackage struct {
+	Login         *Login
+	UMessage      *UMessage
+	UGetConnected *UGetConnected
+	UExit         *UExit
+}
+
+// temp function
+func DecodeUserMessage(msg []byte) (*UserPackage, error) {
+	var m UserMessage
+	err := xml.Unmarshal(msg, &m)
+	if err != nil {
+		return nil, err
+	}
+	switch m.Type {
+	case LOGIN:
+		var l Login
+		err := xml.Unmarshal(msg, &l)
+		if err != nil {
+			return nil, errors.New("Couldn't decode the message: Login malformed")
+		}
+		up := UserPackage{
+			Login:         &l,
+			UMessage:      nil,
+			UGetConnected: nil,
+			UExit:         nil,
+		}
+		return &up, nil
+	case BROAD, DM:
+		var b UMessage
+		err := xml.Unmarshal(msg, &b)
+		if err != nil {
+			return nil, errors.New("Couldn't decode the message: Login malformed")
+		}
+		up := UserPackage{
+			Login:         nil,
+			UMessage:      &b,
+			UGetConnected: nil,
+			UExit:         nil,
+		}
+		return &up, nil
+	case GET_CONN:
+		var u UGetConnected
+		err := xml.Unmarshal(msg, &u)
+		if err != nil {
+			return nil, errors.New("Couldn't decode the message: Login malformed")
+		}
+		up := UserPackage{
+			Login:         nil,
+			UMessage:      nil,
+			UGetConnected: &u,
+			UExit:         nil,
+		}
+		return &up, nil
+	case EXIT:
+		var u UExit
+		err := xml.Unmarshal(msg, &u)
+		if err != nil {
+			return nil, errors.New("Couldn't decode the message: Login malformed")
+		}
+		up := UserPackage{
+			Login:         nil,
+			UMessage:      nil,
+			UGetConnected: nil,
+			UExit:         &u,
+		}
+		return &up, nil
+	default:
+		return nil, errors.New("Couldn't decode the message: No matching type")
+	}
 }
 
 ///// Client calls
