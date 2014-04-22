@@ -54,11 +54,10 @@ func init() {
 
 func main() {
 
+	// Get port where we are going to listen
 	var port string
-	fmt.Println(message.NewLogin("Test"))
-
 	if len(os.Args) == 2 {
-		// Override default port
+		// Override default port if given
 		port = os.Args[1]
 	} else {
 		fmt.Println("You can change the default port passing as argument host:port")
@@ -66,21 +65,23 @@ func main() {
 		port = DEFAULT_ADDR
 	}
 
+	// Create server connection
 	udpAddress, err := net.ResolveUDPAddr("udp4", port)
-
 	if err != nil {
 		log.Fatal("error resolving UDP address on ", port, err)
 	}
-
 	conn, err := net.ListenUDP("udp", udpAddress)
-
 	if err != nil {
 		log.Fatal("error listening on UDP port ", port, err)
 	}
 	serverConn = conn
 	log.Println("Listening on ", udpAddress)
 	defer conn.Close()
+
+	// Create client connection on same port
 	go client(port)
+
+	// Handle incoming messages and loop forever
 	read := handleIncoming()
 	for {
 		fmt.Println(read)
