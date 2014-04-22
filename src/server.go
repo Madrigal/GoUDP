@@ -168,7 +168,7 @@ func getUserOption(rd *bufio.Reader) int {
 
 // TODO handle should know what to do when you need to become the server
 func handleIncoming() <-chan Message {
-	read := listen()
+	read := listenServer()
 	for {
 		message := <-read
 		if message.Content == nil {
@@ -260,7 +260,7 @@ func sendConfirmation(whom *net.UDPAddr, msg []byte) error {
 
 // listen handles any incomming connections and writes them to the channel
 // It doesn't deal with confirmation nor validation
-func listen() <-chan Message {
+func listenServer() <-chan Message {
 	c := make(chan Message)
 	go func() {
 		buff := make([]byte, 1024)
