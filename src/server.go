@@ -66,16 +66,8 @@ func main() {
 	}
 
 	// Create server connection
-	udpAddress, err := net.ResolveUDPAddr("udp4", port)
-	if err != nil {
-		log.Fatal("error resolving UDP address on ", port, err)
-	}
-	conn, err := net.ListenUDP("udp", udpAddress)
-	if err != nil {
-		log.Fatal("error listening on UDP port ", port, err)
-	}
+	conn := initServer(port)
 	serverConn = conn
-	log.Println("Listening on ", udpAddress)
 	defer conn.Close()
 
 	// Create client connection on same port
@@ -86,6 +78,19 @@ func main() {
 	for {
 		fmt.Println(read)
 	}
+}
+
+func initServer(port string) *net.UDPConn {
+	udpAddress, err := net.ResolveUDPAddr("udp4", port)
+	if err != nil {
+		log.Fatal("error resolving UDP address on ", port, err)
+	}
+	conn, err := net.ListenUDP("udp", udpAddress)
+	if err != nil {
+		log.Fatal("error listening on UDP port ", port, err)
+	}
+	log.Println("Listening on ", udpAddress)
+	return conn
 }
 
 func client(port string) {
