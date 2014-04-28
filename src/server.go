@@ -216,11 +216,12 @@ func handleIncoming() <-chan Message {
 
 		}
 		// Convert to internal message
-		_, p, err := message.DecodeUserMessage(m.Content)
+		t, p, err := message.DecodeUserMessage(m.Content)
 		if err != nil {
 			// TODO send error to user
 		}
 		internalM := InternalMessage{
+			Type:      t,
 			Content:   p,
 			Sender:    m.Sender,
 			Timestamp: m.Timestamp,
