@@ -1,0 +1,27 @@
+<!-- Sample request that you can send to the server -->
+<Root>
+    <Type>Login</Type>
+    <Nickname>Test_nickname</Nickname>
+</Root>
+
+<Root>
+    <Type>Broadcast</Type>
+    <To></To>
+    <Message>Hello everyone</Message>
+</Root>
+
+<Root>
+    <Type>DirectMessage</Type>
+    <To>Fulanito</To>
+    <Message>Hello fulanito</Message>
+</Root>
+
+<Root>
+    <Type>GetConnected</Type>
+</Root>
+
+<Root>
+    <Type>Exit</Type>
+</Root>
+
+<!-- TODO We need the ones that we are going to interconnect with -->
