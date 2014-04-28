@@ -47,6 +47,24 @@ var connections map[string]User
 var serverConn *net.UDPConn
 var clientConn *net.UDPConn
 
+// Brain rant
+// We need to get several channels
+// Server:
+// 1. Read incoming messages
+// 2. Validate them (e.g. correct structure, that they are not repeated)
+// 3. Map them to an action
+// 4. Execute that action
+// Client:
+// 1. Get what the user wants to do
+// 2. Map it to an action (e.g. create a new login message)
+// 3. Send the message to the server, wait for confirmation and resend if neccesary
+//    (all-in-one)
+// Additional stuff:
+// 1. When a certain treshold of not delivered messages is reached the client should start
+//    a "select the server" mechanism, which will result in getting a server address. If
+//    this address is the same as yours (not sure about this) become the server
+// 2. Synchronization of clocks.
+
 func init() {
 	users = make(map[string]User, MAX_USR)
 	connections = make(map[string]User, MAX_CONN)
