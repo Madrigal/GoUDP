@@ -13,6 +13,17 @@ const (
 	EXIT     = "Exit"
 )
 
+type Type int
+
+const (
+	UNKNOWN_T  Type = iota
+	LOGIN_T    Type = iota
+	BROAD_T    Type = iota
+	DM_T       Type = iota
+	GET_CONN_T Type = iota
+	EXIT_T     Type = iota
+)
+
 type Base struct {
 	Type string `xml:"Type"`
 }
@@ -84,18 +95,18 @@ type UserPackage struct {
 }
 
 // temp function
-func DecodeUserMessage(msg []byte) (*UserPackage, error) {
+func DecodeUserMessage(msg []byte) (Type, *UserPackage, error) {
 	var m UserMessage
 	err := xml.Unmarshal(msg, &m)
 	if err != nil {
-		return nil, err
+		return UNKNOWN_T, nil, err
 	}
 	switch m.Type {
 	case LOGIN:
 		var l Login
 		err := xml.Unmarshal(msg, &l)
 		if err != nil {
-			return nil, errors.New("Couldn't decode the message: Login malformed")
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Login malformed")
 		}
 		up := UserPackage{
 			Login:         &l,
@@ -103,12 +114,12 @@ func DecodeUserMessage(msg []byte) (*UserPackage, error) {
 			UGetConnected: nil,
 			UExit:         nil,
 		}
-		return &up, nil
+		return LOGIN_T, &up, nil
 	case BROAD, DM:
 		var b UMessage
 		err := xml.Unmarshal(msg, &b)
 		if err != nil {
-			return nil, errors.New("Couldn't decode the message: Login malformed")
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Broadcast or direct message malformed")
 		}
 		up := UserPackage{
 			Login:         nil,
@@ -116,12 +127,15 @@ func DecodeUserMessage(msg []byte) (*UserPackage, error) {
 			UGetConnected: nil,
 			UExit:         nil,
 		}
-		return &up, nil
+		if m.Type == BROAD {
+			return BROAD_T, &up, nil
+		}
+		return DM_T, &up, nil
 	case GET_CONN:
 		var u UGetConnected
 		err := xml.Unmarshal(msg, &u)
 		if err != nil {
-			return nil, errors.New("Couldn't decode the message: Login malformed")
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Get connected malformed")
 		}
 		up := UserPackage{
 			Login:         nil,
@@ -129,12 +143,12 @@ func DecodeUserMessage(msg []byte) (*UserPackage, error) {
 			UGetConnected: &u,
 			UExit:         nil,
 		}
-		return &up, nil
+		return GET_CONN_T, &up, nil
 	case EXIT:
 		var u UExit
 		err := xml.Unmarshal(msg, &u)
 		if err != nil {
-			return nil, errors.New("Couldn't decode the message: Login malformed")
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Exit message malformed")
 		}
 		up := UserPackage{
 			Login:         nil,
@@ -142,9 +156,9 @@ func DecodeUserMessage(msg []byte) (*UserPackage, error) {
 			UGetConnected: nil,
 			UExit:         &u,
 		}
-		return &up, nil
+		return EXIT_T, &up, nil
 	default:
-		return nil, errors.New("Couldn't decode the message: No matching type")
+		return UNKNOWN_T, nil, errors.New("Couldn't decode the message: No matching type")
 	}
 }
 

@@ -31,6 +31,13 @@ type Message struct {
 	Timestamp time.Time
 }
 
+type InternalMessage struct {
+	Type      message.Type
+	Content   *message.UserPackage
+	Sender    *net.UDPAddr
+	Timestamp time.Time
+}
+
 type User struct {
 	Alias   string
 	Address *net.UDPAddr
@@ -193,35 +200,41 @@ func getUserOption(rd *bufio.Reader) int {
 func handleIncoming() <-chan Message {
 	read := listenServer()
 	for {
-		message := <-read
-		if message.Content == nil {
+		m := <-read
+		if m.Content == nil {
 			continue
 		}
-		fmt.Println("Content", string(message.Content))
-		fmt.Println("From address", *message.Sender)
-		fmt.Println("In time", message.Timestamp)
+		fmt.Println("Content", string(m.Content))
+		fmt.Println("From address", *m.Sender)
+		fmt.Println("In time", m.Timestamp)
 		msg := []byte("OK")
-		err := sendConfirmation(message.Sender, msg)
+		err := sendConfirmation(m.Sender, msg)
 		if err != nil {
 			// Assume he went offline
-			log.Println("Couldn't write message ", string(msg), "to ", message.Sender)
-			disconnectUser(message.Sender)
+			log.Println("Couldn't write message ", string(msg), "to ", m.Sender)
+			disconnectUser(m.Sender)
 
 		}
+		// Convert to internal message
+		_, p, err := message.DecodeUserMessage(m.Content)
+		if err != nil {
+			// TODO send error to user
+		}
+		internalM := InternalMessage{
+			Content:   p,
+			Sender:    m.Sender,
+			Timestamp: m.Timestamp,
+		}
+		fmt.Println(internalM)
 		var usr User
-		user, ok := isUserConnected(message.Sender)
+		user, ok := isUserConnected(m.Sender)
 		if !ok {
 			// Means we haven't seen him before
-			fmt.Println("Registring new user", message.Sender)
-			usr = registerUser(message.Sender)
+			fmt.Println("Registring new user", m.Sender)
+			// usr = registerUser(m.Sender)
 		} else {
 			usr = user
 			fmt.Println("User already connected", usr)
-		}
-		num, err := decodeUserMessage(message)
-		if err != nil {
-			// Just discard the message for now
-			log.Println(err.Error())
 		}
 
 	}
@@ -230,7 +243,7 @@ func handleIncoming() <-chan Message {
 func decodeUserMessage(m Message) (int32, error) {
 	// Get message content
 	msg := m.Content
-	p, err := message.DecodeUserMessage(msg)
+	_, p, err := message.DecodeUserMessage(msg)
 	if err != nil {
 		return -1, err
 	}
@@ -264,11 +277,21 @@ func isUserConnected(who *net.UDPAddr) (User, bool) {
 	return val, ok
 }
 
-func registerUser(who *net.UDPAddr) User {
-	// TODO Get user login, probably with a login message
-	alias := "Pepito"
+//// Server get message types
 
-	// Check that he doesn't exist already
+func registerUser(m Message) User {
+	_, message, err := message.DecodeUserMessage(m.Content)
+	if err != nil {
+		// Fail silently
+	}
+	loginMessage := message.Login
+	if loginMessage != nil {
+		// TODO for now just fail
+		return User{}
+	}
+	alias := loginMessage.Nickname
+	who := m.Sender
+	// TODO Check that he doesn't exist already
 	// _, ok := users[alias]
 	usr := User{alias, who, true, make([]string, BLOCKED_INITIAL)}
 	users[alias] = usr
