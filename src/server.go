@@ -71,7 +71,6 @@ func init() {
 }
 
 func main() {
-
 	// Get port where we are going to listen
 	var port string
 	if len(os.Args) == 2 {
@@ -206,12 +205,9 @@ func handleIncoming() <-chan Message {
 		if err != nil {
 			// Assume he went offline
 			log.Println("Couldn't write message ", string(msg), "to ", message.Sender)
-			// TODO just do this if you are server
 			disconnectUser(message.Sender)
 
 		}
-		// TODO Only servers care about this
-		// Discover new connections
 		var usr User
 		user, ok := isUserConnected(message.Sender)
 		if !ok {
@@ -222,8 +218,36 @@ func handleIncoming() <-chan Message {
 			usr = user
 			fmt.Println("User already connected", usr)
 		}
+		num, err := decodeUserMessage(message)
+		if err != nil {
+			// Just discard the message for now
+			log.Println(err.Error())
+		}
 
 	}
+}
+
+func decodeUserMessage(m Message) (int32, error) {
+	// Get message content
+	msg := m.Content
+	p, err := message.DecodeUserMessage(msg)
+	if err != nil {
+		return -1, err
+	}
+	// Don't like this, but haven't found a workaround
+	if p.Login != nil {
+		return 0, nil
+	}
+	if p.UMessage != nil {
+		return 1, nil
+	}
+	if p.UGetConnected != nil {
+		return 2, nil
+	}
+	if p.UExit != nil {
+		return 3, nil
+	}
+	return -1, errors.New("Couldn't map message to a known type")
 }
 
 func sendToServer(msg []byte) error {
