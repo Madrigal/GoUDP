@@ -226,6 +226,23 @@ func handleIncoming() <-chan Message {
 			Sender:    m.Sender,
 			Timestamp: m.Timestamp,
 		}
+		// Dispatch
+		switch internalM.Type {
+		case message.UNKNOWN_T:
+			fmt.Println("<<Type", message.UNKNOWN_T)
+			// Return error to the user
+		case message.LOGIN_T:
+			fmt.Println("<<Type", message.LOGIN_T)
+			//
+		case message.BROAD_T:
+			fmt.Println("<<Type", message.BROAD_T)
+		case message.DM_T:
+			fmt.Println("<<Type", message.DM_T)
+		case message.GET_CONN_T:
+			fmt.Println("<<Type", message.GET_CONN_T)
+		case message.EXIT_T:
+			fmt.Println("<<Type", message.EXIT_T)
+		}
 		fmt.Println(internalM)
 		var usr User
 		user, ok := isUserConnected(m.Sender)
@@ -239,29 +256,6 @@ func handleIncoming() <-chan Message {
 		}
 
 	}
-}
-
-func decodeUserMessage(m Message) (int32, error) {
-	// Get message content
-	msg := m.Content
-	_, p, err := message.DecodeUserMessage(msg)
-	if err != nil {
-		return -1, err
-	}
-	// Don't like this, but haven't found a workaround
-	if p.Login != nil {
-		return 0, nil
-	}
-	if p.UMessage != nil {
-		return 1, nil
-	}
-	if p.UGetConnected != nil {
-		return 2, nil
-	}
-	if p.UExit != nil {
-		return 3, nil
-	}
-	return -1, errors.New("Couldn't map message to a known type")
 }
 
 func sendToServer(msg []byte) error {
