@@ -279,9 +279,10 @@ func isUserConnected(who *net.UDPAddr) (User, bool) {
 func loginHandler(m InternalMessage) {
 	usr, ok := isUserConnected(m.Sender)
 	if ok {
-		// User is already connected, don't do anything
+		// User is already connected, meanning he already picked an alias
+		// don't do anything.
 		// Maybe this could be an error, but it seems to much
-		fmt.Println("User already connected", usr)
+		log.Println("User already connected", usr)
 	} else {
 		// Means we haven't seen him before
 		fmt.Println("Registring new user", m.Sender)
@@ -388,16 +389,21 @@ func getUserAlias(who *net.UDPAddr) (string, error) {
 	return usr.Alias, nil
 }
 
+// registerUser assumes that a user already was already chec
 func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
-
 	alias := loginMessage.Nickname
 	// Check that he doesn't exist already
-	_, isAlreadyRegistered := users[alias]
+	var usr User
+	usr, isAlreadyRegistered := users[alias]
 	if isAlreadyRegistered {
-		return errors.New("Nickname already registered, please choose a different one")
+		// Update to new status
+		usr.Address = who
+		usr.Online = true
+	} else {
+		// Create a new user
+		usr = User{alias, who, true, make([]string, BLOCKED_INITIAL)}
+		users[usr.Alias] = usr
 	}
-	usr := User{alias, who, true, make([]string, BLOCKED_INITIAL)}
-	users[usr.Alias] = usr
 	connections[who.String()] = usr
 	return nil
 }
