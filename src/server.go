@@ -72,6 +72,8 @@ var clientConn *net.UDPConn
 //    this address is the same as yours (not sure about this) become the server
 // 2. Synchronization of clocks.
 
+// To check if a user is connected don't just reserve logins. Use the login message to map a user to a connection,
+// but a user can connect from multiple addresses. Is just as a login without passwords ;)
 func init() {
 	users = make(map[string]User, MAX_USR)
 	connections = make(map[string]User, MAX_CONN)
@@ -313,7 +315,7 @@ func sendBroadcast(broadcastMessage *message.SMessage) {
 			continue
 		}
 		log.Println("sending data", broadcastMessage, "to user", usr.Alias)
-		sendMessage(usr.Address, m)
+		sendMessageToUser(usr, m)
 	}
 }
 
@@ -352,6 +354,28 @@ func disconnectUser(who *net.UDPAddr) {
 		usr.Online = false
 	}
 	delete(connections, who.String())
+}
+
+func sendMessageToUser(usr User, msg []byte) error {
+	// See if the user is connected
+	if usr.Online {
+		// If he is, try to send message
+		err := sendMessage(usr.Address, msg)
+		if err == nil {
+			return nil
+		}
+	}
+	// If user is not currently connected or sent failed try to save it for later
+	err := saveMessageForLater(usr, msg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func saveMessageForLater(usr User, msg []byte) error {
+	// TODO
+	return nil
 }
 
 // sendMessage tries to send a confirmation to the user who
