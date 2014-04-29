@@ -248,10 +248,9 @@ func handleIncoming() <-chan Message {
 			getConnectedHandler(internalM)
 
 		case message.EXIT_T:
-			fmt.Println("<<Type", message.EXIT_T)
-		}
-		fmt.Println(internalM)
+			exitHandler(internalM)
 
+		}
 	}
 }
 
@@ -356,6 +355,11 @@ func getConnectedHandler(m InternalMessage) {
 
 	// Send it!
 	sendMessageToUser(usr, mm)
+}
+
+func exitHandler(m InternalMessage) {
+	// I guess that's it
+	disconnectUser(m.Sender)
 }
 
 func sendBroadcast(broadcastMessage *message.SMessage) {
