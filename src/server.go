@@ -309,6 +309,9 @@ func sendBroadcast(broadcastMessage *message.SMessage) {
 		return
 	}
 	for _, usr := range connections {
+		if usr.Alias == broadcastMessage.From {
+			continue
+		}
 		log.Println("sending data", broadcastMessage, "to user", usr.Alias)
 		sendMessage(usr.Address, m)
 	}
