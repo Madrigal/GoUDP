@@ -218,7 +218,7 @@ func handleIncoming() <-chan Message {
 		// Convert to internal message
 		t, p, err := message.DecodeUserMessage(m.Content)
 		if err != nil {
-			// TODO send error to user
+			sendError(m.Sender, err.Error())
 		}
 		internalM := InternalMessage{
 			Type:      t,
@@ -229,13 +229,14 @@ func handleIncoming() <-chan Message {
 		// Dispatch
 		switch internalM.Type {
 		case message.UNKNOWN_T:
-			fmt.Println("<<Type", message.UNKNOWN_T)
-			// Return error to the user
+			sendError(internalM.Sender, "Couldn't decode message")
+
 		case message.LOGIN_T:
-			fmt.Println("<<Type", message.LOGIN_T)
-			//
+			loginHandler(internalM)
+
 		case message.BROAD_T:
 			fmt.Println("<<Type", message.BROAD_T)
+			// Send message to all connected
 		case message.DM_T:
 			fmt.Println("<<Type", message.DM_T)
 		case message.GET_CONN_T:
@@ -244,18 +245,13 @@ func handleIncoming() <-chan Message {
 			fmt.Println("<<Type", message.EXIT_T)
 		}
 		fmt.Println(internalM)
-		var usr User
-		user, ok := isUserConnected(m.Sender)
-		if !ok {
-			// Means we haven't seen him before
-			fmt.Println("Registring new user", m.Sender)
-			// usr = registerUser(m.Sender)
-		} else {
-			usr = user
-			fmt.Println("User already connected", usr)
-		}
 
 	}
+}
+
+func sendError(who *net.UDPAddr, message string) {
+	fmt.Println("Sending error to ", who.String())
+	fmt.Println("Message", message)
 }
 
 func sendToServer(msg []byte) error {
@@ -273,25 +269,34 @@ func isUserConnected(who *net.UDPAddr) (User, bool) {
 }
 
 //// Server get message types
+func loginHandler(m InternalMessage) {
+	usr, ok := isUserConnected(m.Sender)
+	if ok {
+		// User is already connected, don't do anything
+		// Maybe this could be an error, but it seems to much
+		fmt.Println("User already connected", usr)
+	} else {
+		// Means we haven't seen him before
+		fmt.Println("Registring new user", m.Sender)
+		err := registerUser(m.Sender, m.Content.Login)
+		if err != nil {
+			sendError(m.Sender, err.Error())
+		}
+	}
+}
 
-func registerUser(m Message) User {
-	_, message, err := message.DecodeUserMessage(m.Content)
-	if err != nil {
-		// Fail silently
-	}
-	loginMessage := message.Login
-	if loginMessage != nil {
-		// TODO for now just fail
-		return User{}
-	}
+func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
+
 	alias := loginMessage.Nickname
-	who := m.Sender
-	// TODO Check that he doesn't exist already
-	// _, ok := users[alias]
+	// Check that he doesn't exist already
+	_, isAlreadyRegistered := users[alias]
+	if isAlreadyRegistered {
+		return errors.New("Nickname already registered, please choose a different one")
+	}
 	usr := User{alias, who, true, make([]string, BLOCKED_INITIAL)}
-	users[alias] = usr
+	users[usr.Alias] = usr
 	connections[who.String()] = usr
-	return usr
+	return nil
 }
 
 func amITheServer() bool {
