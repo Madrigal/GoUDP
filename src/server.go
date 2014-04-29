@@ -208,7 +208,7 @@ func handleIncoming() <-chan Message {
 		fmt.Println("From address", *m.Sender)
 		fmt.Println("In time", m.Timestamp)
 		msg := []byte("OK")
-		err := sendConfirmation(m.Sender, msg)
+		err := sendMessage(m.Sender, msg)
 		if err != nil {
 			// Assume he went offline
 			log.Println("Couldn't write message ", string(msg), "to ", m.Sender)
@@ -231,14 +231,14 @@ func handleIncoming() <-chan Message {
 		// Dispatch
 		switch internalM.Type {
 		case message.UNKNOWN_T:
-			sendError(internalM.Sender, "Couldn't decode message")
+			sendError(internalM.Sender, "Couldn't match type to any know type")
 
 		case message.LOGIN_T:
 			loginHandler(internalM)
 
 		case message.BROAD_T:
-			fmt.Println("<<Type", message.BROAD_T)
-			// Send message to all connected
+			broadcastHandler(internalM)
+
 		case message.DM_T:
 			fmt.Println("<<Type", message.DM_T)
 		case message.GET_CONN_T:
@@ -289,6 +289,40 @@ func loginHandler(m InternalMessage) {
 	}
 }
 
+func broadcastHandler(m InternalMessage) {
+	// Create a broadcastMessage
+	alias, err := getUserAlias(m.Sender)
+	if err != nil {
+		sendError(m.Sender, "Fail to send broadcast, reason"+err.Error())
+	}
+	msg := message.NewSBroadcast(alias, m.Content.UMessage.Message)
+	fmt.Println(msg)
+	sendBroadcast(&msg)
+}
+
+func sendBroadcast(broadcastMessage *message.SMessage) {
+	// TODO check if it's for every registered user or every connected user
+	m, err := xml.Marshal(broadcastMessage)
+	if err != nil {
+		// server error
+		log.Println("Server error sending broadcast", err.Error())
+		return
+	}
+	for _, usr := range connections {
+		log.Println("sending data", broadcastMessage, "to user", usr.Alias)
+		sendMessage(usr.Address, m)
+	}
+}
+
+// It's not found because we are using a different thing
+func getUserAlias(who *net.UDPAddr) (string, error) {
+	usr, ok := connections[who.String()]
+	if !ok {
+		return "", errors.New("Your user wasn't found. Please login first")
+	}
+	return usr.Alias, nil
+}
+
 func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
 
 	alias := loginMessage.Nickname
@@ -317,9 +351,9 @@ func disconnectUser(who *net.UDPAddr) {
 	delete(connections, who.String())
 }
 
-// sendConfirmation tries to send a confirmation to the user who
+// sendMessage tries to send a confirmation to the user who
 // sent the message. If it doesn't get any confirmation it sends an error
-func sendConfirmation(whom *net.UDPAddr, msg []byte) error {
+func sendMessage(whom *net.UDPAddr, msg []byte) error {
 	retriesLeft := MAX_RETRY
 	// Send confirmation
 	for retriesLeft > 0 {
