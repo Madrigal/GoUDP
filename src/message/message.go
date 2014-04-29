@@ -11,12 +11,14 @@ const (
 	DM       = "DirectMessage"
 	GET_CONN = "GetConnected"
 	EXIT     = "Exit"
+	ERROR    = "Error"
 )
 
 type Type int
 
 const (
 	UNKNOWN_T  Type = iota
+	ERROR_T    Type = iota
 	LOGIN_T    Type = iota
 	BROAD_T    Type = iota
 	DM_T       Type = iota
@@ -78,6 +80,12 @@ type GetConnUser struct {
 type UExit struct {
 	XMLName xml.Name `xml:"Root"`
 	Base
+}
+
+type ErrorMessage struct {
+	XMLName xml.Name `xml:"Root"`
+	Base
+	Message string `xml:"Message"`
 }
 
 // This type will decode an incoming message
@@ -215,4 +223,10 @@ func NewSGetConnected(ids []string) SGetConnected {
 	u := Users{ConnUsers: users}
 	getConn := SGetConnected{Base: base, Users: u}
 	return getConn
+}
+
+func NewErrorMessage(msg string) ErrorMessage {
+	base := Base{Type: ERROR}
+	message := ErrorMessage{Base: base, Message: msg}
+	return message
 }

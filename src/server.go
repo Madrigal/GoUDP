@@ -218,7 +218,9 @@ func handleIncoming() <-chan Message {
 		// Convert to internal message
 		t, p, err := message.DecodeUserMessage(m.Content)
 		if err != nil {
-			sendError(m.Sender, err.Error())
+			fmt.Println("Error reading XML. Please check it")
+			sendError(m.Sender, "Error reading XML. Please check it")
+			continue
 		}
 		internalM := InternalMessage{
 			Type:      t,
@@ -249,9 +251,11 @@ func handleIncoming() <-chan Message {
 	}
 }
 
-func sendError(who *net.UDPAddr, message string) {
+func sendError(who *net.UDPAddr, msg string) {
 	fmt.Println("Sending error to ", who.String())
-	fmt.Println("Message", message)
+	fmt.Println("Message", msg)
+	errMsg := message.NewErrorMessage(msg)
+	fmt.Println(errMsg)
 }
 
 func sendToServer(msg []byte) error {
