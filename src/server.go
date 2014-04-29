@@ -245,7 +245,8 @@ func handleIncoming() <-chan Message {
 			directMessageHandler(internalM)
 
 		case message.GET_CONN_T:
-			fmt.Println("<<Type", message.GET_CONN_T)
+			getConnectedHandler(internalM)
+
 		case message.EXIT_T:
 			fmt.Println("<<Type", message.EXIT_T)
 		}
@@ -275,7 +276,7 @@ func isUserConnected(who *net.UDPAddr) (User, bool) {
 	return val, ok
 }
 
-//// Server get message types
+/// Handlers
 func loginHandler(m InternalMessage) {
 	usr, ok := isUserConnected(m.Sender)
 	if ok {
@@ -325,6 +326,36 @@ func directMessageHandler(m InternalMessage) {
 		log.Println("Error marshaling dm, reason", err.Error())
 	}
 	sendMessageToUser(reciever, mm)
+}
+
+func getConnectedHandler(m InternalMessage) {
+	// Get all the alias of connected users
+	// TODO This is probably very expensive, maybe should keep a cache of this
+	// but maybe is not worthy
+	connectedUsers := make([]string, len(connections))
+	i := 0
+	for _, usr := range connections {
+		connectedUsers[i] = usr.Alias
+		i++
+	}
+
+	// Make the response
+	msg := message.NewSGetConnected(connectedUsers)
+
+	// Prepare the message to be sent
+	mm, err := xml.Marshal(msg)
+	if err != nil {
+		log.Println("Error marshaling getConnected, reason", err.Error())
+	}
+
+	// Get reference to the user who sent this
+	usr, ok := connections[m.Sender.String()]
+	if !ok {
+		log.Println("Fuck!!!")
+	}
+
+	// Send it!
+	sendMessageToUser(usr, mm)
 }
 
 func sendBroadcast(broadcastMessage *message.SMessage) {
