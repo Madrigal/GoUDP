@@ -242,7 +242,8 @@ func handleIncoming() <-chan Message {
 			broadcastHandler(internalM)
 
 		case message.DM_T:
-			fmt.Println("<<Type", message.DM_T)
+			directMessageHandler(internalM)
+
 		case message.GET_CONN_T:
 			fmt.Println("<<Type", message.GET_CONN_T)
 		case message.EXIT_T:
@@ -300,6 +301,30 @@ func broadcastHandler(m InternalMessage) {
 	msg := message.NewSBroadcast(alias, m.Content.UMessage.Message)
 	fmt.Println(msg)
 	sendBroadcast(&msg)
+}
+
+func directMessageHandler(m InternalMessage) {
+	dm := m.Content.UMessage
+	// Get the alias of the sender
+	alias, err := getUserAlias(m.Sender)
+	if err != nil {
+		sendError(m.Sender, "Fail to send broadcast, reason"+err.Error())
+	}
+	// Create new message
+	msg := message.NewSDirectMessage(alias, dm.Message)
+
+	// Get a reference to the user we are sending the message
+	reciever, ok := users[dm.To]
+	if !ok {
+		sendError(m.Sender, "The user"+dm.To+"Doesn't exist!")
+	}
+
+	// send it!
+	mm, err := xml.Marshal(msg)
+	if err != nil {
+		log.Println("Error marshaling dm, reason", err.Error())
+	}
+	sendMessageToUser(reciever, mm)
 }
 
 func sendBroadcast(broadcastMessage *message.SMessage) {
