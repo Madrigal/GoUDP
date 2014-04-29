@@ -47,8 +47,8 @@ type User struct {
 
 // Global
 // Now just a map of addresses
-var users map[string]User
-var connections map[string]User
+var users map[string]*User
+var connections map[string]*User
 
 // This really simplifies things, although is kind of ugly
 var serverConn *net.UDPConn
@@ -75,8 +75,8 @@ var clientConn *net.UDPConn
 // To check if a user is connected don't just reserve logins. Use the login message to map a user to a connection,
 // but a user can connect from multiple addresses. Is just as a login without passwords ;)
 func init() {
-	users = make(map[string]User, MAX_USR)
-	connections = make(map[string]User, MAX_CONN)
+	users = make(map[string]*User, MAX_USR)
+	connections = make(map[string]*User, MAX_CONN)
 }
 
 func main() {
@@ -270,7 +270,7 @@ func sendToServer(msg []byte) error {
 	return nil
 }
 
-func isUserConnected(who *net.UDPAddr) (User, bool) {
+func isUserConnected(who *net.UDPAddr) (*User, bool) {
 	val, ok := connections[who.String()]
 	return val, ok
 }
@@ -285,7 +285,7 @@ func loginHandler(m InternalMessage) {
 		log.Println("User already connected", usr)
 	} else {
 		// Means we haven't seen him before
-		fmt.Println("Registring new user", m.Sender)
+		fmt.Println("Registring new connection", m.Sender)
 		err := registerUser(m.Sender, m.Content.Login)
 		if err != nil {
 			sendError(m.Sender, err.Error())
@@ -393,18 +393,32 @@ func getUserAlias(who *net.UDPAddr) (string, error) {
 func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
 	alias := loginMessage.Nickname
 	// Check that he doesn't exist already
-	var usr User
+	var usr *User
 	usr, isAlreadyRegistered := users[alias]
+	d, isConnected := connections[who.String()]
+	fmt.Println(">>>>")
+	fmt.Println("Is already registered?", isAlreadyRegistered)
+	fmt.Println("Is connected?", isConnected)
+	fmt.Println("Double check", d)
+	fmt.Println(">>>>")
 	if isAlreadyRegistered {
+		if isConnected {
+			// That login is already used, choose a different one
+			sendError(who, "Login already taken, choose a different one")
+			return errors.New("Login already taken")
+		}
+
 		// Update to new status
 		usr.Address = who
 		usr.Online = true
+
 	} else {
 		// Create a new user
-		usr = User{alias, who, true, make([]string, BLOCKED_INITIAL)}
+		usr = &User{alias, who, true, make([]string, BLOCKED_INITIAL)}
 		users[usr.Alias] = usr
 	}
 	connections[who.String()] = usr
+	fmt.Println("Connections", connections)
 	return nil
 }
 
@@ -422,7 +436,7 @@ func disconnectUser(who *net.UDPAddr) {
 	delete(connections, who.String())
 }
 
-func sendMessageToUser(usr User, msg []byte) error {
+func sendMessageToUser(usr *User, msg []byte) error {
 	// See if the user is connected
 	if usr.Online {
 		// If he is, try to send message
@@ -439,7 +453,7 @@ func sendMessageToUser(usr User, msg []byte) error {
 	return nil
 }
 
-func saveMessageForLater(usr User, msg []byte) error {
+func saveMessageForLater(usr *User, msg []byte) error {
 	// TODO
 	return nil
 }
