@@ -258,7 +258,14 @@ func sendError(who *net.UDPAddr, msg string) {
 	fmt.Println("Sending error to ", who.String())
 	fmt.Println("Message", msg)
 	errMsg := message.NewErrorMessage(msg)
-	fmt.Println(errMsg)
+	m, err := xml.Marshal(errMsg)
+	if err != nil {
+		// server error
+		log.Println("Server error sending broadcast", err.Error())
+		return
+	}
+	// Don't buffer error messages
+	sendMessage(who, m)
 }
 
 func sendToServer(msg []byte) error {
@@ -395,10 +402,6 @@ func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
 	// Check that he doesn't exist already
 	var usr *User
 	usr, isAlreadyRegistered := users[alias]
-	fmt.Println(">>>>")
-	fmt.Println("Is already registered?", isAlreadyRegistered)
-	fmt.Println("Is connected?", usr.Online)
-	fmt.Println(">>>>")
 	if isAlreadyRegistered {
 		if usr.Online {
 			// That login is already used, choose a different one
