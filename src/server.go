@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/xml"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"message"
@@ -80,33 +81,36 @@ func init() {
 }
 
 func main() {
-	// Get port where we are going to listen
-	var port string
-	if len(os.Args) == 2 {
-		// Override default port if given
-		port = os.Args[1]
+	portPtr := flag.String("port", DEFAULT_ADDR, "port to bind")
+	serverPtr := flag.Bool("s", false, "Wheter this should become the server")
+	flag.Parse()
+
+	shouldBeServer := *serverPtr
+	port := *portPtr
+
+	if shouldBeServer {
+		// Create server connection
+		conn := initServer(port)
+		serverConn = conn
+		defer conn.Close()
+
+		// Start a client
+		go client(port)
+
+		// Handle incoming messages and loop forever
+		read := handleIncoming()
+		for {
+			fmt.Println(read)
+		}
 	} else {
-		fmt.Println("You can change the default port passing as argument host:port")
-		fmt.Println("e.g. 127.0.0.1:9000")
-		port = DEFAULT_ADDR
+		// Create client connection on same port
+		go client(port)
 	}
 
-	// Create server connection
-	conn := initServer(port)
-	serverConn = conn
-	defer conn.Close()
-
-	// Create client connection on same port
-	go client(port)
-
-	// Handle incoming messages and loop forever
-	read := handleIncoming()
-	for {
-		fmt.Println(read)
-	}
 }
 
 func initServer(port string) *net.UDPConn {
+	fmt.Println("Starting server")
 	udpAddress, err := net.ResolveUDPAddr("udp4", port)
 	if err != nil {
 		log.Fatal("error resolving UDP address on ", port, err)
@@ -120,6 +124,7 @@ func initServer(port string) *net.UDPConn {
 }
 
 func client(port string) {
+	fmt.Println("Starting client")
 	conn, err := net.Dial("udp", port)
 	if err != nil {
 		// TODO Probably retry
@@ -132,6 +137,7 @@ func client(port string) {
 //This is going to be on the main loop and will basically be our user interface
 // TODO This address is going to change when we change the server
 func getUserInput() {
+	fmt.Println("Put your input!")
 	reader := bufio.NewReader(os.Stdin)
 	for {
 
