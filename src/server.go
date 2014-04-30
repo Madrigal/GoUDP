@@ -98,15 +98,15 @@ func main() {
 		go client(port)
 
 		// Handle incoming messages and loop forever
-		read := handleIncoming()
-		for {
-			fmt.Println(read)
-		}
+		handleIncoming()
+
 	} else {
 		// Create client connection on same port
 		go client(port)
 	}
-
+	for {
+		// Wait forever
+	}
 }
 
 func initServer(port string) *net.UDPConn {
@@ -123,7 +123,8 @@ func initServer(port string) *net.UDPConn {
 	return conn
 }
 
-func client(port string) {
+func client(port string) <-chan bool {
+	c := make(chan bool)
 	fmt.Println("Starting client")
 	conn, err := net.Dial("udp", port)
 	if err != nil {
@@ -131,7 +132,8 @@ func client(port string) {
 		log.Fatal("Couldn't connect to port", port, err)
 	}
 	clientConn = conn.(*net.UDPConn)
-	go getUserInput()
+	getUserInput()
+	return c
 }
 
 //This is going to be on the main loop and will basically be our user interface
