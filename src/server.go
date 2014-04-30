@@ -395,14 +395,12 @@ func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
 	// Check that he doesn't exist already
 	var usr *User
 	usr, isAlreadyRegistered := users[alias]
-	d, isConnected := connections[who.String()]
 	fmt.Println(">>>>")
 	fmt.Println("Is already registered?", isAlreadyRegistered)
-	fmt.Println("Is connected?", isConnected)
-	fmt.Println("Double check", d)
+	fmt.Println("Is connected?", usr.Online)
 	fmt.Println(">>>>")
 	if isAlreadyRegistered {
-		if isConnected {
+		if usr.Online {
 			// That login is already used, choose a different one
 			sendError(who, "Login already taken, choose a different one")
 			return errors.New("Login already taken")
