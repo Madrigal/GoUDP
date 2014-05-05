@@ -54,6 +54,15 @@ var connections map[string]*User
 // This really simplifies things, although is kind of ugly
 var serverConn *net.UDPConn
 var clientConn *net.UDPConn
+var GlobalPort string
+
+// A petition to start the server. For now just holds the port to connect to
+type ServerPetition struct {
+	Port string
+}
+
+var startServer chan ServerPetition
+var stopServer chan ServerPetition
 
 // Brain rant
 // We need to get several channels
@@ -78,6 +87,8 @@ var clientConn *net.UDPConn
 func init() {
 	users = make(map[string]*User, MAX_USR)
 	connections = make(map[string]*User, MAX_CONN)
+	startServer = make(chan ServerPetition, 1)
+	stopServer = make(chan ServerPetition, 1)
 }
 
 func main() {
@@ -87,20 +98,52 @@ func main() {
 
 	shouldBeServer := *serverPtr
 	port := *portPtr
-
+	GlobalPort = port
+	go serverControl()
 	if shouldBeServer {
-		// Create server connection
-		conn := initServer(port)
-		serverConn = conn
-		defer conn.Close()
-
-		// Handle incoming messages and loop forever
-		go handleIncoming()
-
+		s := ServerPetition{port}
+		startServer <- s
 	}
 
 	// Always create a client
 	client(port)
+}
+
+func serverControl() {
+	for {
+		select {
+		case b := <-startServer:
+			conn := initServer(b.Port)
+			serverConn = conn
+			defer conn.Close()
+
+			// Handle incoming messages and loop forever
+			go handleIncoming()
+
+		case <-stopServer:
+			killServer()
+		}
+	}
+}
+
+func killServer() {
+	var retries int32
+	var err error
+	// Sanity check
+	if serverConn == nil {
+		log.Println("Trying to stop a non started server!")
+		return
+	}
+	for retries = 3; retries > 0; retries-- {
+		err = serverConn.Close()
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if retries == 0 {
+		panic("Couldn't stop the server, reason" + err.Error())
+	}
 }
 
 func initServer(port string) *net.UDPConn {
@@ -161,6 +204,16 @@ func getUserInput() {
 
 func handleUserInput(line string) {
 	line = strings.TrimRight(line, "\n")
+	// DELETEME
+	if line == "stop" {
+		fmt.Println("Killing the server")
+		s := ServerPetition{}
+		stopServer <- s
+	} else if line == "start" {
+		fmt.Println("Starting the server")
+		s := ServerPetition{GlobalPort}
+		startServer <- s
+	}
 	fmt.Println("Hey", line)
 	clientConn.Write([]byte(line))
 }
