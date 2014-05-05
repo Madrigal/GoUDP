@@ -204,17 +204,40 @@ func getUserInput() {
 
 func handleUserInput(line string) {
 	line = strings.TrimRight(line, "\n")
-	// DELETEME
-	if line == "stop" {
-		fmt.Println("Killing the server")
-		s := ServerPetition{}
-		stopServer <- s
-	} else if line == "start" {
-		fmt.Println("Starting the server")
-		s := ServerPetition{GlobalPort}
-		startServer <- s
+	arr := strings.Split(line, " ")
+	l := arr[0]
+	var m string
+	// if _, ok := knownPrefixes[l], !ok {
+	// 	// assume is a broadcast
+	// 	m = line
+	// } else {
+	// 	m = strings.TrimPrefix(line, l)
+	// }
+
+	m = strings.TrimPrefix(line, l)
+	switch {
+	case l == "/nick":
+		fmt.Println("/NICK", m)
+	case l == "/names":
+		fmt.Println("/NAMES", m)
+	case l == "/msg":
+		fmt.Println("/MSG", m)
+	case l == "/send":
+		fmt.Println("/SEND", m)
+	case l == "/block":
+		fmt.Println("/BLOCK", m)
+	case l == "/fb":
+		fmt.Println("/FB", m)
+	case l == "/quit":
+		fmt.Println("/QUIT", m)
+	case l == "/admin":
+		fmt.Println("/ADMIN", m)
+	default:
+		fmt.Println("broadcast", m)
 	}
-	fmt.Println("Hey", line)
+
+	fmt.Println("You wrote", line)
+
 	clientConn.Write([]byte(line))
 }
 
