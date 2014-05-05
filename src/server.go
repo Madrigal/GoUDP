@@ -123,9 +123,8 @@ func initServer(port string) *net.UDPConn {
 	return conn
 }
 
-func client(port string) <-chan bool {
+func client(port string) {
 	log.Println("Starting client")
-	c := make(chan bool)
 	retries := 3
 	var err error
 	var con net.Conn
@@ -148,7 +147,6 @@ func client(port string) <-chan bool {
 	}
 	clientConn = conn
 	getUserInput()
-	return c
 }
 
 //This is going to be on the main loop and will basically be our user interface
