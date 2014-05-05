@@ -98,8 +98,9 @@ func main() {
 		go handleIncoming()
 
 	}
-	client(port)
 
+	// Always create a client
+	client(port)
 }
 
 func initServer(port string) *net.UDPConn {
