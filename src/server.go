@@ -81,8 +81,8 @@ func init() {
 }
 
 func main() {
-	portPtr := flag.String("port", DEFAULT_ADDR, "port to bind")
-	serverPtr := flag.Bool("s", false, "Wheter this should become the server")
+	portPtr := flag.String("port", DEFAULT_ADDR, "port to bind to")
+	serverPtr := flag.Bool("s", false, "Wheter this instance should become the server")
 	flag.Parse()
 
 	shouldBeServer := *serverPtr
@@ -110,7 +110,7 @@ func main() {
 }
 
 func initServer(port string) *net.UDPConn {
-	fmt.Println("Starting server")
+	log.Println("Starting server")
 	udpAddress, err := net.ResolveUDPAddr("udp4", port)
 	if err != nil {
 		log.Fatal("error resolving UDP address on ", port, err)
@@ -124,14 +124,29 @@ func initServer(port string) *net.UDPConn {
 }
 
 func client(port string) <-chan bool {
+	log.Println("Starting client")
 	c := make(chan bool)
-	fmt.Println("Starting client")
-	conn, err := net.Dial("udp", port)
-	if err != nil {
-		// TODO Probably retry
+	retries := 3
+	var err error
+	var con net.Conn
+	var conn *net.UDPConn
+	for ; retries > 0; retries-- {
+		con, err = net.Dial("udp", port)
+		conn = con.(*net.UDPConn)
+		if err == nil {
+			break
+		} else {
+			// Give some time to the server to setup
+			time.Sleep(500 * time.Millisecond)
+			log.Println("Failing because", err)
+		}
+	}
+
+	if retries == 0 {
+		// If we couldn't create a client we are useless
 		log.Fatal("Couldn't connect to port", port, err)
 	}
-	clientConn = conn.(*net.UDPConn)
+	clientConn = conn
 	getUserInput()
 	return c
 }
