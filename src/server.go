@@ -94,19 +94,12 @@ func main() {
 		serverConn = conn
 		defer conn.Close()
 
-		// Start a client
-		go client(port)
-
 		// Handle incoming messages and loop forever
-		handleIncoming()
+		go handleIncoming()
 
-	} else {
-		// Create client connection on same port
-		go client(port)
 	}
-	for {
-		// Wait forever
-	}
+	client(port)
+
 }
 
 func initServer(port string) *net.UDPConn {
