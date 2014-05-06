@@ -10,7 +10,6 @@ import (
 	"message"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -319,33 +318,6 @@ func sendLogin(nickname string) {
 	// Send message
 	byteMessage, _ := xml.Marshal(loginMessage)
 	sendToServer(byteMessage)
-}
-
-func getUserOption(rd *bufio.Reader) int {
-	// Keep asking until we got a correct input
-	for {
-		fmt.Println("Welcome to the server. Tell us what you want to do: ")
-		fmt.Println("1: Send broadcast")
-		fmt.Println("2: Send private message")
-		fmt.Println("3: Get connected users")
-		fmt.Println("4: Publish status to FB")
-		fmt.Println("5: Block a user")
-		fmt.Println("6: Exit")
-		in, err := rd.ReadString('\n')
-		if err != nil {
-			fmt.Println("Something went wrong reading your input. Try again")
-			log.Println("Error on user input", err)
-			continue
-		}
-		opt, err := strconv.Atoi(in)
-		if err != nil {
-			fmt.Println("Couldn't get a number from what you wrote", err)
-			log.Println("Error in atoi", err)
-			continue
-		}
-		// TODO check that it is between our options
-		return opt
-	}
 }
 
 // TODO handle should know what to do when you need to become the server
