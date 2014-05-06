@@ -206,34 +206,66 @@ func handleUserInput(line string) {
 	line = strings.TrimRight(line, "\n")
 	arr := strings.Split(line, " ")
 	l := arr[0]
-	var m string
-	// if _, ok := knownPrefixes[l], !ok {
-	// 	// assume is a broadcast
-	// 	m = line
-	// } else {
-	// 	m = strings.TrimPrefix(line, l)
-	// }
-
-	m = strings.TrimPrefix(line, l)
+	length := len(arr)
 	switch {
 	case l == "/nick":
-		fmt.Println("/NICK", m)
+		if length <= 1 {
+			fmt.Println("Missing arguments")
+			return
+		}
+		nick := arr[1]
+		fmt.Println("/NICK", nick)
 	case l == "/names":
-		fmt.Println("/NAMES", m)
+		fmt.Println("/NAMES")
 	case l == "/msg":
-		fmt.Println("/MSG", m)
+		if length <= 2 {
+			fmt.Println("Missing arguments")
+			return
+		}
+		to := arr[1]
+		msg := strings.Join(arr[2:length], " ")
+		fmt.Println("/msg", "to", to, "message", msg)
 	case l == "/send":
-		fmt.Println("/SEND", m)
+		if length <= 3 {
+			fmt.Println("Missing arguments")
+			return
+		}
+		to := arr[1]
+		filename := arr[2]
+		fmt.Println("/SEND", "to", to, "filename", filename)
 	case l == "/block":
-		fmt.Println("/BLOCK", m)
+		if length <= 2 {
+			fmt.Println("Missing arguments")
+			return
+		}
+		who := arr[1]
+		fmt.Println("/BLOCK", who)
 	case l == "/fb":
-		fmt.Println("/FB", m)
+		if length <= 2 {
+			fmt.Println("Missing arguments")
+			return
+		}
+		message := strings.Join(arr[1:length], " ")
+		fmt.Println("/FB", message)
 	case l == "/quit":
-		fmt.Println("/QUIT", m)
+		fmt.Println("/QUIT")
 	case l == "/admin":
-		fmt.Println("/ADMIN", m)
+		if length != 2 {
+			fmt.Println("Incorrect arguments")
+			return
+		}
+		action := arr[1]
+		switch {
+		case action == "start":
+			// Start
+		case action == "stop":
+			//Stop
+		default:
+			fmt.Println("Unkwon admin action")
+		}
+		fmt.Println("/ADMIN", action)
 	default:
-		fmt.Println("broadcast", m)
+		fmt.Println("broadcast", line)
 	}
 
 	fmt.Println("You wrote", line)
