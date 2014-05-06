@@ -182,6 +182,7 @@ func client(port string) {
 		log.Fatal("Couldn't connect to port", port, err)
 	}
 	clientConn = conn
+	go listenClient(clientConn)
 	getUserInput()
 }
 
@@ -596,6 +597,28 @@ func sendMessage(whom *net.UDPAddr, msg []byte) error {
 		retriesLeft--
 	}
 	return errors.New("Couldn't send confirmation")
+}
+
+func listenClient(conn *net.UDPConn) {
+	buff := make([]byte, 1024)
+	for {
+		n, addr, err := conn.ReadFromUDP(buff)
+		if n > 0 && addr != nil {
+			// Copy the response
+			res := make([]byte, n)
+
+			// Trim newline
+			if string(buff[n-1]) == "\n" {
+				copy(res, buff[:n-1])
+			} else {
+				copy(res, buff[:n])
+			}
+			fmt.Println("Got from server", string(res))
+		}
+		if err != nil {
+			fmt.Println("Error reading from server", err)
+		}
+	}
 }
 
 // listen handles any incomming connections and writes them to the channel
