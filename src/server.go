@@ -202,6 +202,16 @@ func getUserInput() {
 	}
 }
 
+func sendXmlToServer(xmlMessage interface{}) {
+	bytes, err := xml.Marshal(xmlMessage)
+	if err != nil {
+		fmt.Println("Error marshaling", err)
+	}
+	fmt.Println("sending xml", string(bytes))
+	// sendToServer(bytes)
+	clientConn.Write(bytes)
+}
+
 func handleUserInput(line string) {
 	line = strings.TrimRight(line, "\n")
 	arr := strings.Split(line, " ")
@@ -214,9 +224,13 @@ func handleUserInput(line string) {
 			return
 		}
 		nick := arr[1]
-		fmt.Println("/NICK", nick)
+		m := message.NewLogin(nick)
+		sendXmlToServer(m)
+
 	case l == "/names":
-		fmt.Println("/NAMES")
+		m := message.NewUGetConnected()
+		sendXmlToServer(m)
+
 	case l == "/msg":
 		if length <= 2 {
 			fmt.Println("Missing arguments")
@@ -224,7 +238,9 @@ func handleUserInput(line string) {
 		}
 		to := arr[1]
 		msg := strings.Join(arr[2:length], " ")
-		fmt.Println("/msg", "to", to, "message", msg)
+		m := message.NewDirectMessage(to, msg)
+		sendXmlToServer(m)
+
 	case l == "/send":
 		if length <= 3 {
 			fmt.Println("Missing arguments")
@@ -232,23 +248,31 @@ func handleUserInput(line string) {
 		}
 		to := arr[1]
 		filename := arr[2]
+		// TODO
 		fmt.Println("/SEND", "to", to, "filename", filename)
+
 	case l == "/block":
 		if length <= 2 {
 			fmt.Println("Missing arguments")
 			return
 		}
 		who := arr[1]
+		// TODO Not a message
 		fmt.Println("/BLOCK", who)
+
 	case l == "/fb":
 		if length <= 2 {
 			fmt.Println("Missing arguments")
 			return
 		}
 		message := strings.Join(arr[1:length], " ")
+		// TODO
 		fmt.Println("/FB", message)
+
 	case l == "/quit":
-		fmt.Println("/QUIT")
+		m := message.NewExit()
+		sendXmlToServer(m)
+
 	case l == "/admin":
 		if length != 2 {
 			fmt.Println("Incorrect arguments")
@@ -257,20 +281,23 @@ func handleUserInput(line string) {
 		action := arr[1]
 		switch {
 		case action == "start":
-			// Start
+			s := ServerPetition{GlobalPort}
+			startServer <- s
 		case action == "stop":
-			//Stop
+			s := ServerPetition{}
+			stopServer <- s
 		default:
 			fmt.Println("Unkwon admin action")
 		}
-		fmt.Println("/ADMIN", action)
+
 	default:
-		fmt.Println("broadcast", line)
+		m := message.NewBroadcast(line)
+		sendXmlToServer(m)
 	}
 
 	fmt.Println("You wrote", line)
 
-	clientConn.Write([]byte(line))
+	// clientConn.Write([]byte(line))
 }
 
 func firstRun(rd *bufio.Reader) {
@@ -344,6 +371,7 @@ func handleIncoming() <-chan Message {
 		t, p, err := message.DecodeUserMessage(m.Content)
 		if err != nil {
 			fmt.Println("Error reading XML. Please check it")
+			fmt.Println("Got", string(m.Content))
 			sendError(m.Sender, "Error reading XML. Please check it")
 			continue
 		}
