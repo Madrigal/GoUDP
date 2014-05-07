@@ -43,6 +43,7 @@ type User struct {
 	Address *net.UDPAddr
 	Online  bool
 	Blocked []string
+	Pending [][]byte
 }
 
 // Global
@@ -521,7 +522,12 @@ func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
 
 	} else {
 		// Create a new user
-		usr = &User{alias, who, true, make([]string, BLOCKED_INITIAL)}
+		usr = &User{alias,
+			who,
+			true,
+			make([]string, BLOCKED_INITIAL),
+			make([][]byte, 100),
+		}
 		users[usr.Alias] = usr
 	}
 	connections[who.String()] = usr
@@ -536,6 +542,13 @@ func disconnectUser(who *net.UDPAddr) {
 		usr.Online = false
 	}
 	delete(connections, who.String())
+}
+
+func sendPendingMessages(usr *User) {
+	pending := usr.Pending
+	for _, message := range pending {
+		sendMessageToUser(usr, message)
+	}
 }
 
 func sendMessageToUser(usr *User, msg []byte) error {
@@ -556,7 +569,7 @@ func sendMessageToUser(usr *User, msg []byte) error {
 }
 
 func saveMessageForLater(usr *User, msg []byte) error {
-	// TODO
+	usr.Pending = append(usr.Pending, msg)
 	return nil
 }
 
