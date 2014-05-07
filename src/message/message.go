@@ -95,11 +95,73 @@ type UserMessage struct {
 	Data interface{}
 }
 
+type ServerMessage struct {
+	Base
+	Data interface{}
+}
+
 type UserPackage struct {
 	Login         *Login
 	UMessage      *UMessage
 	UGetConnected *UGetConnected
 	UExit         *UExit
+}
+
+type ServerPackage struct {
+	Direct    *SMessage
+	Connected *SGetConnected
+	Error     *ErrorMessage
+}
+
+func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
+	var m ServerMessage
+	err := xml.Unmarshal(msg, &m)
+	if err != nil {
+		return UNKNOWN_T, nil, err
+	}
+	switch m.Type {
+	case BROAD, DM:
+		var b SMessage
+		err := xml.Unmarshal(msg, &b)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Broadcast or direct message malformed")
+		}
+		mp := ServerPackage{
+			Direct:    &b,
+			Connected: nil,
+			Error:     nil,
+		}
+		if m.Type == BROAD {
+			return BROAD_T, &mp, nil
+		}
+		return DM_T, &mp, nil
+	case GET_CONN:
+		var u SGetConnected
+		err := xml.Unmarshal(msg, &u)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Get connected malformed")
+		}
+		mp := ServerPackage{
+			Direct:    nil,
+			Connected: &u,
+			Error:     nil,
+		}
+		return GET_CONN_T, &mp, nil
+	case ERROR:
+		var u ErrorMessage
+		err := xml.Unmarshal(msg, &u)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Exit message malformed")
+		}
+		mp := ServerPackage{
+			Direct:    nil,
+			Connected: nil,
+			Error:     &u,
+		}
+		return ERROR_T, &mp, nil
+	default:
+		return UNKNOWN_T, nil, errors.New("Couldn't decode the message: No matching type")
+	}
 }
 
 // temp function

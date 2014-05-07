@@ -478,7 +478,6 @@ func exitHandler(m InternalMessage) {
 }
 
 func sendBroadcast(broadcastMessage *message.SMessage) {
-	// TODO check if it's for every registered user or every connected user
 	m, err := xml.Marshal(broadcastMessage)
 	if err != nil {
 		// server error
@@ -587,7 +586,31 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 			continue
 		}
 		// TODO Deal with message
+		fmt.Println("Decoding user message")
+		t, m, err := message.DecodeServerMessage(b)
+		if err != nil {
+			fmt.Println("Error reading XML from server")
+			fmt.Println("Got", string(b))
+			continue
+		}
+		switch t {
+		case message.ERROR_T:
+			fmt.Println("Error from server:", m.Error.Message)
+		case message.DM_T:
+			msg := m.Direct
+			fmt.Println("Message from ", msg.From, ": ", msg.Message)
+		case message.BROAD_T:
+			msg := m.Direct
+			fmt.Println("Message from ", msg.From, ": ", msg.Message)
 
+		case message.GET_CONN_T:
+			msg := m.Connected
+			fmt.Println("Connected users")
+			users := msg.Users.ConnUsers
+			for _, usr := range users {
+				fmt.Println("-", usr)
+			}
+		}
 	}
 }
 

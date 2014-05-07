@@ -2,8 +2,8 @@
 - <del>Handle user input with XML (should be fairly simple)</del>
 - <del>Add flag to start either as a server or as a client (temporary)</del>
 - <del>Implement full client on the server.go file</del>
-- Use channels to handle message sending/validation
-- Get confirmation when sending a message
+- Use channels to handle message sending/validation (partially complete, need time validation)
+- <del>Get confirmation when sending a message</del>
 - Send offline messages
 - Block users
 - Send files (not necessarily P2P)
