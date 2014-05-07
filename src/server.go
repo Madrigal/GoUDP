@@ -561,11 +561,6 @@ func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
 	return nil
 }
 
-func amITheServer() bool {
-	// TODO
-	return true
-}
-
 func disconnectUser(who *net.UDPAddr) {
 	usr, ok := connections[who.String()]
 	if ok {
@@ -623,6 +618,7 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 			continue
 		}
 		// TODO Deal with message
+
 	}
 }
 
