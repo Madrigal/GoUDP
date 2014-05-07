@@ -6,6 +6,8 @@
 - <del>Get confirmation when sending a message</del>
 - <del>Send offline messages</del>
 - Block users
+- Add message type for files
+- Package file in messages
 - Send files (not necessarily P2P)
 - Add a proper logger with a debug switch
 - If starts with "/" and not a valid command don't do a broadcast
