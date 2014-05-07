@@ -615,7 +615,7 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 			fmt.Println("Message from ", msg.From, ": ", msg.Message)
 		case message.BROAD_T:
 			msg := m.Direct
-			fmt.Println("Message from ", msg.From, ": ", msg.Message)
+			fmt.Println("Broadcast from ", msg.From, ": ", msg.Message)
 
 		case message.GET_CONN_T:
 			msg := m.Connected
