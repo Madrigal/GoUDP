@@ -7,6 +7,7 @@
 - <del>Send offline messages</del>
 - Block users
 - Send files (not necessarily P2P)
+- Add a proper logger with a debug switch
 - If starts with "/" and not a valid command don't do a broadcast
 
 # For later
