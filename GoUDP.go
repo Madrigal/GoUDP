@@ -314,28 +314,6 @@ func handleUserInput(line string) {
 	// clientConn.Write([]byte(line))
 }
 
-func firstRun(rd *bufio.Reader) {
-	// Get the user to authenticate with the server
-	for {
-		fmt.Println("Welcome to the server. Please choose a nickname")
-		nickname, err := rd.ReadString('\n')
-		if err != nil {
-			fmt.Println("Something went wrong reading your input. Try again")
-			log.Println("Error on user input", err)
-			continue
-		}
-		sendLogin(nickname)
-	}
-}
-
-func sendLogin(nickname string) {
-	loginMessage := message.NewLogin(nickname)
-	// Send message
-	byteMessage, _ := xml.Marshal(loginMessage)
-	sendToServer(byteMessage)
-}
-
-// TODO handle should know what to do when you need to become the server
 func handleIncoming() <-chan Message {
 	read := listenServer()
 	for {
@@ -404,15 +382,6 @@ func sendError(who *net.UDPAddr, msg string) {
 	}
 	// Don't buffer error messages
 	sendMessage(who, m)
-}
-
-func sendToServer(msg []byte) error {
-	_, err := serverConn.Write(msg)
-	if err != nil {
-		return err
-	}
-	// TODO Wait for confirmation
-	return nil
 }
 
 func isUserConnected(who *net.UDPAddr) (*User, bool) {
