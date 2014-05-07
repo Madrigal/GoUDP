@@ -519,6 +519,7 @@ func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
 		// Update to new status
 		usr.Address = who
 		usr.Online = true
+		sendPendingMessages(usr)
 
 	} else {
 		// Create a new user

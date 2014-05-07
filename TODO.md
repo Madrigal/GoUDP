@@ -4,7 +4,7 @@
 - <del>Implement full client on the server.go file</del>
 - Use channels to handle message sending/validation (partially complete, need time validation)
 - <del>Get confirmation when sending a message</del>
-- Send offline messages
+- <del>Send offline messages</del>
 - Block users
 - Send files (not necessarily P2P)
 - If starts with "/" and not a valid command don't do a broadcast
