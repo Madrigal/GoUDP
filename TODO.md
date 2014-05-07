@@ -7,6 +7,7 @@
 - Send offline messages
 - Block users
 - Send files (not necessarily P2P)
+- If starts with "/" and not a valid command don't do a broadcast
 
 # For later
 - Figure out how to change server at runtime
