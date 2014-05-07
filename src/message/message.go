@@ -12,6 +12,7 @@ const (
 	GET_CONN = "GetConnected"
 	EXIT     = "Exit"
 	ERROR    = "Error"
+	BLOCK    = "Block"
 )
 
 type Type int
@@ -23,6 +24,7 @@ const (
 	BROAD_T    Type = iota
 	DM_T       Type = iota
 	GET_CONN_T Type = iota
+	BLOCK_T    Type = iota
 	EXIT_T     Type = iota
 )
 
@@ -82,6 +84,13 @@ type UExit struct {
 	Base
 }
 
+type Block struct {
+	XMLName xml.Name `xml:"Root"`
+	Base
+	Blocker string
+	Blocked string
+}
+
 type ErrorMessage struct {
 	XMLName xml.Name `xml:"Root"`
 	Base
@@ -101,6 +110,7 @@ type ServerMessage struct {
 }
 
 type UserPackage struct {
+	Block         *Block
 	Login         *Login
 	UMessage      *UMessage
 	UGetConnected *UGetConnected
@@ -110,6 +120,7 @@ type UserPackage struct {
 type ServerPackage struct {
 	Direct    *SMessage
 	Connected *SGetConnected
+	Block     *Block
 	Error     *ErrorMessage
 }
 
@@ -147,6 +158,18 @@ func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
 			Error:     nil,
 		}
 		return GET_CONN_T, &mp, nil
+
+	case BLOCK:
+		var b Block
+		err := xml.Unmarshal(msg, &b)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Block message malformed")
+		}
+		mp := ServerPackage{
+			Block: &b,
+		}
+		return BLOCK_T, &mp, nil
+
 	case ERROR:
 		var u ErrorMessage
 		err := xml.Unmarshal(msg, &u)
@@ -214,6 +237,18 @@ func DecodeUserMessage(msg []byte) (Type, *UserPackage, error) {
 			UExit:         nil,
 		}
 		return GET_CONN_T, &up, nil
+
+	case BLOCK:
+		var b Block
+		err := xml.Unmarshal(msg, &b)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Block message malformed")
+		}
+		up := UserPackage{
+			Block: &b,
+		}
+		return BLOCK_T, &up, nil
+
 	case EXIT:
 		var u UExit
 		err := xml.Unmarshal(msg, &u)
@@ -261,6 +296,12 @@ func NewExit() UExit {
 	base := Base{Type: EXIT}
 	exit := UExit{Base: base}
 	return exit
+}
+
+func NewBlock(who string, blocking string) Block {
+	base := Base{Type: BLOCK}
+	bm := Block{Base: base, Blocker: who, Blocked: blocking}
+	return bm
 }
 
 ///// Server calls
