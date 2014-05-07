@@ -599,7 +599,6 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 			confirmation <- b
 			continue
 		}
-		// TODO Deal with message
 		fmt.Println("Decoding user message")
 		t, m, err := message.DecodeServerMessage(b)
 		if err != nil {
