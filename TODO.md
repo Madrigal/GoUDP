@@ -5,7 +5,7 @@
 - Use channels to handle message sending/validation (partially complete, need time validation)
 - <del>Get confirmation when sending a message</del>
 - <del>Send offline messages</del>
-- Block users
+- <del>Block users</del>
 - Add message type for files
 - Package file in messages
 - Send files (not necessarily P2P)

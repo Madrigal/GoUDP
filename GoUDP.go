@@ -48,7 +48,11 @@ type User struct {
 
 // Global
 // Now just a map of addresses
+
+// Map of aliases
 var users map[string]*User
+
+// Map of addresses
 var connections map[string]*User
 
 // This really simplifies things, although is kind of ugly
@@ -272,13 +276,13 @@ func handleUserInput(line string) {
 		fmt.Println("/SEND", "to", to, "filename", filename)
 
 	case l == "/block":
-		if length <= 2 {
+		if length <= 1 {
 			fmt.Println("Missing arguments")
 			return
 		}
 		who := arr[1]
-		// TODO Not a message
-		fmt.Println("/BLOCK", who)
+		m := message.NewBlock(myAlias, who)
+		sendXmlToServer(m)
 
 	case l == "/fb":
 		if length <= 2 {
@@ -318,6 +322,20 @@ func handleUserInput(line string) {
 	fmt.Println("You wrote", line)
 
 	// clientConn.Write([]byte(line))
+}
+
+func blockUser(blocker string, blocked string) {
+	// Get both users
+	I, ok := users[blocker]
+	if !ok {
+		fmt.Errorf("Couldn't get the current alias for blocking", blocker)
+	}
+	_, ok = users[blocked]
+	if !ok {
+		fmt.Errorf("You can't block a user that is not registered!, you tried to block", blocked)
+	}
+
+	I.Blocked = append(I.Blocked, blocked)
 }
 
 func handleIncoming() <-chan Message {
@@ -368,6 +386,9 @@ func handleIncoming() <-chan Message {
 
 		case message.GET_CONN_T:
 			getConnectedHandler(internalM)
+
+		case message.BLOCK_T:
+			blockHandler(internalM)
 
 		case message.EXIT_T:
 			exitHandler(internalM)
@@ -445,7 +466,8 @@ func directMessageHandler(m InternalMessage) {
 	if err != nil {
 		log.Println("Error marshaling dm, reason", err.Error())
 	}
-	sendMessageToUser(reciever, mm)
+	sendMessaeToUserCheckBlocked(reciever, alias, mm)
+	// sendMessageToUser(reciever, mm)
 }
 
 func getConnectedHandler(m InternalMessage) {
@@ -478,6 +500,11 @@ func getConnectedHandler(m InternalMessage) {
 	sendMessageToUser(usr, mm)
 }
 
+func blockHandler(m InternalMessage) {
+	block := m.Content.Block
+	blockUser(block.Blocker, block.Blocked)
+}
+
 func exitHandler(m InternalMessage) {
 	// I guess that's it
 	disconnectUser(m.Sender)
@@ -495,7 +522,8 @@ func sendBroadcast(broadcastMessage *message.SMessage) {
 			continue
 		}
 		log.Println("sending data", broadcastMessage, "to user", usr.Alias)
-		sendMessageToUser(usr, m)
+		// TODO Check blocked
+		sendMessaeToUserCheckBlocked(usr, broadcastMessage.From, m)
 	}
 }
 
@@ -555,6 +583,16 @@ func sendPendingMessages(usr *User) {
 	for _, message := range pending {
 		sendMessageToUser(usr, message)
 	}
+}
+
+func sendMessaeToUserCheckBlocked(to *User, sender string, msg []byte) error {
+	// Iterate and check if the user is blocked
+	for _, alias := range to.Blocked {
+		if alias == sender {
+			return nil
+		}
+	}
+	return sendMessageToUser(to, msg)
 }
 
 func sendMessageToUser(usr *User, msg []byte) error {
