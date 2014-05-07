@@ -100,15 +100,16 @@ func main() {
 	shouldBeServer := *serverPtr
 	port := *portPtr
 	GlobalPort = port
+	confirmationChan := make(chan []byte)
 	go serverControl()
-	go sendDataToServer(sendingChannel)
+	go sendDataToServer(sendingChannel, confirmationChan)
 	if shouldBeServer {
 		s := ServerPetition{port}
 		startServer <- s
 	}
 
 	// Always create a client
-	client(port)
+	client(port, confirmationChan)
 }
 
 func serverControl() {
@@ -162,7 +163,7 @@ func initServer(port string) *net.UDPConn {
 	return conn
 }
 
-func client(port string) {
+func client(port string, confirmation chan []byte) {
 	log.Println("Starting client")
 	retries := 3
 	var err error
@@ -187,7 +188,7 @@ func client(port string) {
 	clientConn = conn
 	c := make(chan []byte)
 	go listenClient(clientConn, c)
-	go handleClient(c)
+	go handleClient(c, confirmation)
 	getUserInput()
 }
 
@@ -215,12 +216,13 @@ func sendXmlToServer(xmlMessage interface{}) {
 	sendingChannel <- bytes
 }
 
-func sendDataToServer(sending chan []byte) {
+func sendDataToServer(sending chan []byte, confirmation chan []byte) {
 	for {
 		bytes := <-sending
 		fmt.Println("From send data to server ", string(bytes))
 		clientConn.Write(bytes)
-		// TODO Wait for confirmation
+		<-confirmation
+		fmt.Println("Got confirmation")
 	}
 }
 
@@ -611,11 +613,16 @@ func sendMessage(whom *net.UDPAddr, msg []byte) error {
 	return errors.New("Couldn't send confirmation")
 }
 
-func handleClient(c <-chan []byte) {
+func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 	fmt.Println("In handle client")
 	for {
 		b := <-c
 		fmt.Println("From handle client", string(b))
+		if message.IsConfirmation(b) {
+			confirmation <- b
+			continue
+		}
+		// TODO Deal with message
 	}
 }
 
@@ -633,7 +640,6 @@ func listenClient(conn *net.UDPConn, c chan<- []byte) {
 			} else {
 				copy(res, buff[:n])
 			}
-			fmt.Println("Got from server", string(res))
 			c <- res
 		}
 		if err != nil {
@@ -668,7 +674,6 @@ func listenServer() <-chan Message {
 					Timestamp: time.Now()}
 				// Send to the channel
 				c <- m
-				fmt.Println("Send to the channel")
 			}
 			if err != nil {
 				// If it fails send a nil message

@@ -230,3 +230,8 @@ func NewErrorMessage(msg string) ErrorMessage {
 	message := ErrorMessage{Base: base, Message: msg}
 	return message
 }
+
+func IsConfirmation(msg []byte) bool {
+	// TODO This will handle the messages from the other user
+	return string(msg) == "OK"
+}
