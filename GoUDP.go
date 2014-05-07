@@ -61,6 +61,8 @@ type ServerPetition struct {
 	Port string
 }
 
+var myAlias string
+
 var startServer chan ServerPetition
 var stopServer chan ServerPetition
 var sendingChannel chan []byte
@@ -240,6 +242,9 @@ func handleUserInput(line string) {
 		}
 		nick := arr[1]
 		m := message.NewLogin(nick)
+		// You can do this but the server will
+		// reject you if there is an error
+		myAlias = nick
 		sendXmlToServer(m)
 
 	case l == "/names":
