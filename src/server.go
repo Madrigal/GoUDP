@@ -62,6 +62,7 @@ type ServerPetition struct {
 
 var startServer chan ServerPetition
 var stopServer chan ServerPetition
+var sendingChannel chan []byte
 
 // Brain rant
 // We need to get several channels
@@ -88,6 +89,7 @@ func init() {
 	connections = make(map[string]*User, MAX_CONN)
 	startServer = make(chan ServerPetition, 1)
 	stopServer = make(chan ServerPetition, 1)
+	sendingChannel = make(chan []byte)
 }
 
 func main() {
@@ -99,6 +101,7 @@ func main() {
 	port := *portPtr
 	GlobalPort = port
 	go serverControl()
+	go sendDataToServer(sendingChannel)
 	if shouldBeServer {
 		s := ServerPetition{port}
 		startServer <- s
@@ -209,9 +212,16 @@ func sendXmlToServer(xmlMessage interface{}) {
 	if err != nil {
 		fmt.Println("Error marshaling", err)
 	}
-	fmt.Println("sending xml", string(bytes))
-	// sendToServer(bytes)
-	clientConn.Write(bytes)
+	sendingChannel <- bytes
+}
+
+func sendDataToServer(sending chan []byte) {
+	for {
+		bytes := <-sending
+		fmt.Println("From send data to server ", string(bytes))
+		clientConn.Write(bytes)
+		// TODO Wait for confirmation
+	}
 }
 
 func handleUserInput(line string) {
@@ -658,6 +668,7 @@ func listenServer() <-chan Message {
 					Timestamp: time.Now()}
 				// Send to the channel
 				c <- m
+				fmt.Println("Send to the channel")
 			}
 			if err != nil {
 				// If it fails send a nil message
