@@ -119,6 +119,7 @@ type UserPackage struct {
 	UMessage      *UMessage
 	UGetConnected *UGetConnected
 	UExit         *UExit
+	File          *FileMessage
 }
 
 type ServerPackage struct {
@@ -126,6 +127,7 @@ type ServerPackage struct {
 	Connected *SGetConnected
 	Block     *Block
 	Error     *ErrorMessage
+	File      *FileMessage
 }
 
 func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
@@ -173,6 +175,30 @@ func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
 			Block: &b,
 		}
 		return BLOCK_T, &mp, nil
+
+	case FILE:
+		var f FileMessage
+		err := xml.Unmarshal(msg, &f)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: File message malformed")
+		}
+		mp := ServerPackage{
+			File: &f,
+		}
+
+		var t Type
+
+		if f.Kind == FILETRANSFER_START {
+			t = STARTFILE_T
+		}
+		if f.Kind == FILETRANSFER_MID {
+			t = SENDFILE_T
+		}
+		if f.Kind == FILETRANSFER_END {
+			t = ENDFILE_T
+		}
+
+		return t, &mp, nil
 
 	case ERROR:
 		var u ErrorMessage
@@ -252,6 +278,30 @@ func DecodeUserMessage(msg []byte) (Type, *UserPackage, error) {
 			Block: &b,
 		}
 		return BLOCK_T, &up, nil
+
+	case FILE:
+		var f FileMessage
+		err := xml.Unmarshal(msg, &f)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: File message malformed")
+		}
+		up := UserPackage{
+			File: &f,
+		}
+
+		var t Type
+
+		if f.Kind == FILETRANSFER_START {
+			t = STARTFILE_T
+		}
+		if f.Kind == FILETRANSFER_MID {
+			t = SENDFILE_T
+		}
+		if f.Kind == FILETRANSFER_END {
+			t = ENDFILE_T
+		}
+
+		return t, &up, nil
 
 	case EXIT:
 		var u UExit
