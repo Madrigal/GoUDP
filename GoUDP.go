@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"message"
 	"net"
@@ -272,8 +273,7 @@ func handleUserInput(line string) {
 		}
 		to := arr[1]
 		filename := arr[2]
-		// TODO
-		fmt.Println("/SEND", "to", to, "filename", filename)
+		fileSender(to, filename)
 
 	case l == "/block":
 		if length <= 1 {
@@ -525,6 +525,31 @@ func sendBroadcast(broadcastMessage *message.SMessage) {
 		// TODO Check blocked
 		sendMessaeToUserCheckBlocked(usr, broadcastMessage.From, m)
 	}
+}
+
+func fileSender(alias string, path string) {
+	// Send start message
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Println("Error opening file in ", path, " ", err.Error())
+	}
+	defer file.Close()
+	r := bufio.NewReader(file)
+	// w := bufio.NewWriter(os.Stdout)
+
+	// Send all contents
+	buf := make([]byte, 1024)
+	for {
+		n, err := r.Read(buf)
+		if err != nil && err != io.EOF {
+			fmt.Errorf("pinshi error")
+		}
+		if n == 0 {
+			break
+		}
+		fmt.Println(string(buf[:n]))
+	}
+	// Send final message
 }
 
 // It's not found because we are using a different thing
