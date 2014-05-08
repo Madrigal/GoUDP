@@ -13,19 +13,23 @@ const (
 	EXIT     = "Exit"
 	ERROR    = "Error"
 	BLOCK    = "Block"
+	FILE     = "FILE"
 )
 
 type Type int
 
 const (
-	UNKNOWN_T  Type = iota
-	ERROR_T    Type = iota
-	LOGIN_T    Type = iota
-	BROAD_T    Type = iota
-	DM_T       Type = iota
-	GET_CONN_T Type = iota
-	BLOCK_T    Type = iota
-	EXIT_T     Type = iota
+	UNKNOWN_T   Type = iota
+	ERROR_T     Type = iota
+	LOGIN_T     Type = iota
+	BROAD_T     Type = iota
+	DM_T        Type = iota
+	GET_CONN_T  Type = iota
+	BLOCK_T     Type = iota
+	STARTFILE_T Type = iota
+	SENDFILE_T  Type = iota
+	ENDFILE_T   Type = iota
+	EXIT_T      Type = iota
 )
 
 type Base struct {
