@@ -390,6 +390,9 @@ func handleIncoming() <-chan Message {
 		case message.BLOCK_T:
 			blockHandler(internalM)
 
+		case message.FILE_T:
+			fileHandler(internalM)
+
 		case message.EXIT_T:
 			exitHandler(internalM)
 
@@ -505,6 +508,37 @@ func blockHandler(m InternalMessage) {
 	blockUser(block.Blocker, block.Blocked)
 }
 
+func fileHandler(m InternalMessage) {
+	alias, err := getUserAlias(m.Sender)
+	if err != nil {
+		sendError(m.Sender, "Fail to send file message, reason"+err.Error())
+	}
+	fm := m.Content.File
+	// Get a reference to the user we are sending the message
+	reciever, ok := users[fm.To]
+	if !ok {
+		sendError(m.Sender, "The user"+fm.To+"Doesn't exist!")
+	}
+	mm, err := xml.Marshal(fm)
+	if err != nil {
+		log.Println("Error marshaling getConnected, reason", err.Error())
+	}
+	sendMessaeToUserCheckBlocked(reciever, alias, mm)
+}
+
+// Client stuff
+func createFile(name string) {
+	// TODO
+}
+
+func writeToFile(filename string, payload string) {
+	// TODO
+}
+
+func closeFile() {
+
+}
+
 func exitHandler(m InternalMessage) {
 	// I guess that's it
 	disconnectUser(m.Sender)
@@ -535,7 +569,7 @@ func fileSender(alias string, path string) {
 		return
 	}
 	defer file.Close()
-	start := message.NewFileStart()
+	start := message.NewFileStart(alias, path)
 	fmt.Println(start)
 	r := bufio.NewReader(file)
 	// w := bufio.NewWriter(os.Stdout)
@@ -551,12 +585,12 @@ func fileSender(alias string, path string) {
 		if n == 0 {
 			break
 		}
-		m = message.NewFileSend(buf[:n])
+		m = message.NewFileSend(alias, path, buf[:n])
 		fmt.Println(m)
 		// fmt.Println(string(buf[:n]))
 	}
 	// Send final message
-	m = message.NewFileEnd()
+	m = message.NewFileEnd(alias, path)
 	fmt.Println(m)
 }
 
