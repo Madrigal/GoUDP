@@ -267,7 +267,7 @@ func handleUserInput(line string) {
 		sendXmlToServer(m)
 
 	case l == "/send":
-		if length <= 3 {
+		if length <= 2 {
 			fmt.Println("Missing arguments")
 			return
 		}
