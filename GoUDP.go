@@ -532,13 +532,17 @@ func fileSender(alias string, path string) {
 	file, err := os.Open(path)
 	if err != nil {
 		fmt.Println("Error opening file in ", path, " ", err.Error())
+		return
 	}
 	defer file.Close()
+	start := message.NewFileStart()
+	fmt.Println(start)
 	r := bufio.NewReader(file)
 	// w := bufio.NewWriter(os.Stdout)
 
 	// Send all contents
 	buf := make([]byte, 1024)
+	var m message.FileMessage
 	for {
 		n, err := r.Read(buf)
 		if err != nil && err != io.EOF {
@@ -547,9 +551,13 @@ func fileSender(alias string, path string) {
 		if n == 0 {
 			break
 		}
-		fmt.Println(string(buf[:n]))
+		m = message.NewFileSend(buf[:n])
+		fmt.Println(m)
+		// fmt.Println(string(buf[:n]))
 	}
 	// Send final message
+	m = message.NewFileEnd()
+	fmt.Println(m)
 }
 
 // It's not found because we are using a different thing
