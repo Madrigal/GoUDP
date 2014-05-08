@@ -6,13 +6,17 @@
 - <del>Get confirmation when sending a message</del>
 - <del>Send offline messages</del>
 - <del>Block users</del>
-- Add message type for files
-- Package file in messages
-- Send files (not necessarily P2P)
-- Add a proper logger with a debug switch
-- If starts with "/" and not a valid command don't do a broadcast
+- <del> Add message type for files </del>
+- <del> Package file in messages </del>
+- <del> Send files (not necessarily P2P) </del>
+- Create path on demand for user (probably just ask him)
 
 # For later
 - Figure out how to change server at runtime
 - Synch clocks
 - Connect with FB
+
+# Stretch goals
+- Separate server and client code
+- Add a proper logger with a debug switch
+- If starts with "/" and not a valid command don't do a broadcast
