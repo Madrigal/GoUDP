@@ -521,22 +521,53 @@ func fileHandler(m InternalMessage) {
 	}
 	mm, err := xml.Marshal(fm)
 	if err != nil {
-		log.Println("Error marshaling getConnected, reason", err.Error())
+		log.Println("Error marshaling file, reason", err.Error())
 	}
 	sendMessaeToUserCheckBlocked(reciever, alias, mm)
 }
 
 // Client stuff
 func createFile(name string) {
-	// TODO
+	// open output file
+	fo, err := os.Create(name)
+	if err != nil {
+		fmt.Errorf("Error opening file", name, err.Error(), "\n")
+	}
+	fo.Close()
 }
 
 func writeToFile(filename string, payload string) {
-	// TODO
+	// TODO may be way too expensive
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		fmt.Errorf("Error opening file", filename, err.Error(), "\n")
+		return
+	}
+	defer f.Close()
+	log.Println("On write to file, writing", payload, "to", filename)
+	// bytes := []byte(payload)
+	// w := bufio.NewWriter(f)
+	// n, err := w.Write(bytes[:len(bytes)])
+	n, err := f.WriteString(payload)
+	if err != nil {
+		fmt.Errorf("Couldn't wrote to file", filename, err.Error(), "\n")
+		return
+	}
+	if n <= 0 {
+		fmt.Errorf("Couldn't wrote to file", filename, "\n")
+		return
+	}
+	fmt.Println("Wrote ", n, "bytes to file")
+	f.Sync()
+	// err = w.Flush()
+	// if err != nil {
+	// 	fmt.Errorf("Error flushing file", filename, err.Error(), "\n")
+	// }
 }
 
 func closeFile() {
-
+	// I think there is nothing to do here
+	fmt.Println("Download succesful")
 }
 
 func exitHandler(m InternalMessage) {
@@ -563,16 +594,19 @@ func sendBroadcast(broadcastMessage *message.SMessage) {
 
 func fileSender(alias string, path string) {
 	// Send start message
+	log.Println("Sending file")
 	file, err := os.Open(path)
 	if err != nil {
 		fmt.Println("Error opening file in ", path, " ", err.Error())
 		return
 	}
 	defer file.Close()
+	// TODO temporary fix
+	path = "temp.txt"
 	start := message.NewFileStart(alias, path)
 	fmt.Println(start)
+	sendXmlToServer(start)
 	r := bufio.NewReader(file)
-	// w := bufio.NewWriter(os.Stdout)
 
 	// Send all contents
 	buf := make([]byte, 1024)
@@ -583,15 +617,21 @@ func fileSender(alias string, path string) {
 			fmt.Errorf("pinshi error")
 		}
 		if n == 0 {
+			log.Println("Got no bytes from file", path)
 			break
 		}
+		fmt.Println("Readed >>")
+		fmt.Println(string(buf[:n]))
+
 		m = message.NewFileSend(alias, path, buf[:n])
+		sendXmlToServer(m)
 		fmt.Println(m)
-		// fmt.Println(string(buf[:n]))
+
 	}
 	// Send final message
 	m = message.NewFileEnd(alias, path)
 	fmt.Println(m)
+	sendXmlToServer(m)
 }
 
 // It's not found because we are using a different thing
@@ -732,6 +772,18 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 			users := msg.Users.ConnUsers
 			for _, usr := range users {
 				fmt.Println("-", usr)
+			}
+
+		case message.FILE_T:
+			msg := m.File
+			switch msg.Kind {
+			// TODO Check blocked
+			case message.FILETRANSFER_START:
+				createFile(msg.Filename)
+			case message.FILETRANSFER_MID:
+				writeToFile(msg.Filename, msg.Cont)
+			case message.FILETRANSFER_END:
+				closeFile()
 			}
 		}
 	}

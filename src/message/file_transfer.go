@@ -27,7 +27,7 @@ func NewFileStart(to string, filename string) FileMessage {
 
 func NewFileSend(to string, filename string, payload []byte) FileMessage {
 	base := Base{Type: FILE}
-	f := FileMessage{Base: base, Kind: FILETRANSFER_MID, To: to, Filename: filename, Cont: string(payload)}
+	f := FileMessage{Base: base, Kind: FILETRANSFER_MID, To: to, Filename: filename, Cont: string(payload[:len(payload)])}
 	return f
 }
 
