@@ -69,6 +69,7 @@ type ServerPetition struct {
 }
 
 var myAlias string
+var myTime time.Time
 
 var startServer chan ServerPetition
 var stopServer chan ServerPetition
@@ -149,6 +150,7 @@ func client(port string, confirmation chan []byte) {
 		// If we couldn't create a client we are useless
 		log.Fatal("Couldn't connect to port", port, err)
 	}
+	myTime = time.Now()
 	clientConn = conn
 	c := make(chan []byte)
 	go listenClient(clientConn, c)
@@ -246,6 +248,7 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 		if err != nil {
 			fmt.Println("Error reading XML from server")
 			fmt.Println("Got", string(b))
+			log.Println(err.Error())
 			continue
 		}
 		switch t {
@@ -276,6 +279,17 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 				writeToFile(msg.Filename, msg.Cont)
 			case message.FILETRANSFER_END:
 				closeFile()
+			}
+
+		case message.CLOCK_T:
+			// Check if request or response
+			msg := m.Clock
+			fmt.Println("Pinche clock")
+			if msg.Time.IsZero() {
+				fmt.Println("Pinche request")
+				sendTimeToServer()
+			} else {
+				fmt.Println("Pinche response", msg.Time)
 			}
 		}
 	}
@@ -386,10 +400,17 @@ func handleUserInput(line string) {
 	fmt.Println("You wrote", line)
 }
 
+// ****** Client time to server ****** //
+func sendTimeToServer() {
+	m := message.NewClockMessage(myTime)
+	sendXmlToServer(m)
+}
+
 // ****** Client-to-server interface  ****** //
 
 // sendXmlToServer unmarshals an Xml structure and writes it to the
 // sending channel
+// TODO change name because I tried to send a marshaled xml
 func sendXmlToServer(xmlMessage interface{}) {
 	bytes, err := xml.Marshal(xmlMessage)
 	if err != nil {
@@ -560,7 +581,7 @@ func sendTimeRequest(period time.Duration) {
 		mutex.Lock()
 		// Ugly, but I'm lazy.
 		// A message with value 0 means "Give me your time"
-		m := message.ClockMessage{}
+		m := message.NewClockMessage(time.Time{})
 		mm, _ := xml.Marshal(m)
 		fmt.Println("Sending time to user", m)
 		for _, u := range connections {
