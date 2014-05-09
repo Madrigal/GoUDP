@@ -9,12 +9,13 @@
 - <del> Add message type for files </del>
 - <del> Package file in messages </del>
 - <del> Send files (not necessarily P2P) </del>
+- Synch clocks
+- Connect with <del>FB</del> Twitter :) (https://github.com/carbocation/twitter)
+
 - Create path on demand for user (probably just ask him)
 
 # For later
 - Figure out how to change server at runtime
-- Synch clocks
-- Connect with FB
 
 # Stretch goals
 - Separate server and client code
