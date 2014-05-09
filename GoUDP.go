@@ -155,7 +155,21 @@ func client(port string, confirmation chan []byte) {
 	c := make(chan []byte)
 	go listenClient(clientConn, c)
 	go handleClient(c, confirmation)
+	go updateClock(&myTime, time.Second*3)
 	getUserInput()
+}
+
+// ****** Client time  ****** //
+// Since the time is not tied to the computer clock it needs to be updated
+// each n time
+func updateClock(clock *time.Time, period time.Duration) {
+	c := time.Tick(period)
+	mutex := sync.Mutex{}
+	for _ = range c {
+		mutex.Lock()
+		*clock = clock.Add(period)
+		mutex.Unlock()
+	}
 }
 
 // ****** Controlling the server  ****** //
