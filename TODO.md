@@ -11,11 +11,11 @@
 - <del> Send files (not necessarily P2P) </del>
 - Synch clocks
 - Connect with <del>FB</del> Twitter :) (https://github.com/carbocation/twitter)
-
-- Create path on demand for user (probably just ask him)
+- Figure out how to change server at runtime
+- Create an abstraction layer for communicating with other client
 
 # For later
-- Figure out how to change server at runtime
+- Create path on demand for user (probably just ask him)
 
 # Stretch goals
 - Separate server and client code
