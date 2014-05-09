@@ -32,6 +32,14 @@ type Message struct {
 	Timestamp time.Time
 }
 
+// ******** Server stuff  ******** //
+// Map of aliases
+var users map[string]*User
+
+// Map of addresses
+var connections map[string]*User
+var serverConn *net.UDPConn
+
 type InternalMessage struct {
 	Type      message.Type
 	Content   *message.UserPackage
@@ -47,17 +55,9 @@ type User struct {
 	Pending [][]byte
 }
 
+// ******** Client stuff  ******** //
 // Global
 // Now just a map of addresses
-
-// Map of aliases
-var users map[string]*User
-
-// Map of addresses
-var connections map[string]*User
-
-// This really simplifies things, although is kind of ugly
-var serverConn *net.UDPConn
 var clientConn *net.UDPConn
 var GlobalPort string
 
@@ -120,57 +120,11 @@ func main() {
 	client(port, confirmationChan)
 }
 
-func serverControl() {
-	for {
-		select {
-		case b := <-startServer:
-			conn := initServer(b.Port)
-			serverConn = conn
-			defer conn.Close()
+// ******** Client functions  ******** //
 
-			// Handle incoming messages and loop forever
-			go handleIncoming()
-
-		case <-stopServer:
-			killServer()
-		}
-	}
-}
-
-func killServer() {
-	var retries int32
-	var err error
-	// Sanity check
-	if serverConn == nil {
-		log.Println("Trying to stop a non started server!")
-		return
-	}
-	for retries = 3; retries > 0; retries-- {
-		err = serverConn.Close()
-		if err == nil {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	if retries == 0 {
-		panic("Couldn't stop the server, reason" + err.Error())
-	}
-}
-
-func initServer(port string) *net.UDPConn {
-	log.Println("Starting server")
-	udpAddress, err := net.ResolveUDPAddr("udp4", port)
-	if err != nil {
-		log.Fatal("error resolving UDP address on ", port, err)
-	}
-	conn, err := net.ListenUDP("udp", udpAddress)
-	if err != nil {
-		log.Fatal("error listening on UDP port ", port, err)
-	}
-	log.Println("Listening on ", udpAddress)
-	return conn
-}
-
+// ****** Starting the client  ****** //
+// client Dials in the server and starts the functions that deal with
+// recieving user input and sending to the server
 func client(port string, confirmation chan []byte) {
 	log.Println("Starting client")
 	retries := 3
@@ -200,8 +154,132 @@ func client(port string, confirmation chan []byte) {
 	getUserInput()
 }
 
-//This is going to be on the main loop and will basically be our user interface
-// TODO This address is going to change when we change the server
+// ****** Controlling the server  ****** //
+func serverControl() {
+	for {
+		select {
+		case b := <-startServer:
+			conn := initServer(b.Port)
+			serverConn = conn
+			defer conn.Close()
+
+			// Handle incoming messages and loop forever
+			go handleIncoming()
+
+		case <-stopServer:
+			killServer()
+		}
+	}
+}
+
+func initServer(port string) *net.UDPConn {
+	log.Println("Starting server")
+	udpAddress, err := net.ResolveUDPAddr("udp4", port)
+	if err != nil {
+		log.Fatal("error resolving UDP address on ", port, err)
+	}
+	conn, err := net.ListenUDP("udp", udpAddress)
+	if err != nil {
+		log.Fatal("error listening on UDP port ", port, err)
+	}
+	log.Println("Listening on ", udpAddress)
+	return conn
+}
+
+func killServer() {
+	var retries int32
+	var err error
+	// Sanity check
+	if serverConn == nil {
+		log.Println("Trying to stop a non started server!")
+		return
+	}
+	for retries = 3; retries > 0; retries-- {
+		err = serverConn.Close()
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if retries == 0 {
+		panic("Couldn't stop the server, reason" + err.Error())
+	}
+}
+
+// ****** Listen messages from the server  ****** //
+func listenClient(conn *net.UDPConn, c chan<- []byte) {
+	buff := make([]byte, 1024)
+	for {
+		n, addr, err := conn.ReadFromUDP(buff)
+		if n > 0 && addr != nil {
+			// Copy the response
+			res := make([]byte, n)
+
+			// Trim newline
+			if string(buff[n-1]) == "\n" {
+				copy(res, buff[:n-1])
+			} else {
+				copy(res, buff[:n])
+			}
+			c <- res
+		}
+		if err != nil {
+			fmt.Println("Error reading from server", err)
+		}
+	}
+}
+
+func handleClient(c <-chan []byte, confirmation chan<- []byte) {
+	fmt.Println("In handle client")
+	for {
+		b := <-c
+		fmt.Println("From handle client", string(b))
+		if message.IsConfirmation(b) {
+			confirmation <- b
+			continue
+		}
+		fmt.Println("Decoding user message")
+		t, m, err := message.DecodeServerMessage(b)
+		if err != nil {
+			fmt.Println("Error reading XML from server")
+			fmt.Println("Got", string(b))
+			continue
+		}
+		switch t {
+		case message.ERROR_T:
+			fmt.Println("Error from server:", m.Error.Message)
+		case message.DM_T:
+			msg := m.Direct
+			fmt.Println("Message from ", msg.From, ": ", msg.Message)
+		case message.BROAD_T:
+			msg := m.Direct
+			fmt.Println("Broadcast from ", msg.From, ": ", msg.Message)
+
+		case message.GET_CONN_T:
+			msg := m.Connected
+			fmt.Println("Connected users")
+			users := msg.Users.ConnUsers
+			for _, usr := range users {
+				fmt.Println("-", usr)
+			}
+
+		case message.FILE_T:
+			msg := m.File
+			switch msg.Kind {
+			// TODO Check blocked
+			case message.FILETRANSFER_START:
+				createFile(msg.Filename)
+			case message.FILETRANSFER_MID:
+				writeToFile(msg.Filename, msg.Cont)
+			case message.FILETRANSFER_END:
+				closeFile()
+			}
+		}
+	}
+}
+
+// ****** User interface  ****** //
+// getUserInput reads whatever comes from stdin and writes it to a handler
 func getUserInput() {
 	fmt.Println("Put your input!")
 	reader := bufio.NewReader(os.Stdin)
@@ -216,24 +294,7 @@ func getUserInput() {
 	}
 }
 
-func sendXmlToServer(xmlMessage interface{}) {
-	bytes, err := xml.Marshal(xmlMessage)
-	if err != nil {
-		fmt.Println("Error marshaling", err)
-	}
-	sendingChannel <- bytes
-}
-
-func sendDataToServer(sending chan []byte, confirmation chan []byte) {
-	for {
-		bytes := <-sending
-		fmt.Println("From send data to server ", string(bytes))
-		clientConn.Write(bytes)
-		<-confirmation
-		fmt.Println("Got confirmation")
-	}
-}
-
+// handleUserInput dispatches whatever the user writes
 func handleUserInput(line string) {
 	line = strings.TrimRight(line, "\n")
 	arr := strings.Split(line, " ")
@@ -320,24 +381,112 @@ func handleUserInput(line string) {
 	}
 
 	fmt.Println("You wrote", line)
-
-	// clientConn.Write([]byte(line))
 }
 
-func blockUser(blocker string, blocked string) {
-	// Get both users
-	I, ok := users[blocker]
-	if !ok {
-		fmt.Errorf("Couldn't get the current alias for blocking", blocker)
-	}
-	_, ok = users[blocked]
-	if !ok {
-		fmt.Errorf("You can't block a user that is not registered!, you tried to block", blocked)
-	}
+// ****** Client-to-server interface  ****** //
 
-	I.Blocked = append(I.Blocked, blocked)
+// sendXmlToServer unmarshals an Xml structure and writes it to the
+// sending channel
+func sendXmlToServer(xmlMessage interface{}) {
+	bytes, err := xml.Marshal(xmlMessage)
+	if err != nil {
+		fmt.Println("Error marshaling", err)
+	}
+	sendingChannel <- bytes
 }
 
+// sendDataToServer is a queue of messages for the server. It recieves a message
+// writes it to the connectin and waits for confirmation
+// TODO should add a timeout
+func sendDataToServer(sending chan []byte, confirmation chan []byte) {
+	for {
+		bytes := <-sending
+		fmt.Println("From send data to server ", string(bytes))
+		clientConn.Write(bytes)
+		<-confirmation
+		fmt.Println("Got confirmation")
+	}
+}
+
+// ****** Client file functions  ****** //
+func createFile(name string) {
+	// open output file
+	fo, err := os.Create(name)
+	if err != nil {
+		fmt.Errorf("Error opening file", name, err.Error(), "\n")
+	}
+	fo.Close()
+}
+
+func writeToFile(filename string, payload string) {
+	// TODO may be way too expensive
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		fmt.Errorf("Error opening file", filename, err.Error(), "\n")
+		return
+	}
+	defer f.Close()
+	log.Println("On write to file, writing", payload, "to", filename)
+	n, err := f.WriteString(payload)
+	if err != nil {
+		fmt.Errorf("Couldn't wrote to file", filename, err.Error(), "\n")
+		return
+	}
+	if n <= 0 {
+		fmt.Errorf("Couldn't wrote to file", filename, "\n")
+		return
+	}
+	fmt.Println("Wrote ", n, "bytes to file")
+	f.Sync()
+}
+
+func closeFile() {
+	// I think there is nothing to do here
+	fmt.Println("Download succesful")
+}
+
+// ******** Server functions  ******** //
+// ****** Incoming interface  ****** //
+
+// listen handles any incomming connections and writes them to the channel
+// It doesn't deal with confirmation nor validation
+func listenServer() <-chan Message {
+	c := make(chan Message)
+	go func() {
+		buff := make([]byte, 1024)
+
+		for {
+			n, addr, err := serverConn.ReadFromUDP(buff)
+			if n > 0 && addr != nil {
+				// Copy the response
+				res := make([]byte, n)
+
+				// Trim newline
+				if string(buff[n-1]) == "\n" {
+					copy(res, buff[:n-1])
+				} else {
+					copy(res, buff[:n])
+				}
+
+				// Create the message
+				m := Message{Content: res,
+					Sender:    addr,
+					Timestamp: time.Now()}
+				// Send to the channel
+				c <- m
+			}
+			if err != nil {
+				// If it fails send a nil message
+				c <- Message{nil, nil, time.Now()}
+				break
+			}
+		}
+	}()
+	return c
+}
+
+// handleIncoming gets incoming messages, sends a confirmation
+// and dispatchs the message to the several "handlers"
 func handleIncoming() <-chan Message {
 	read := listenServer()
 	for {
@@ -400,26 +549,7 @@ func handleIncoming() <-chan Message {
 	}
 }
 
-func sendError(who *net.UDPAddr, msg string) {
-	fmt.Println("Sending error to ", who.String())
-	fmt.Println("Message", msg)
-	errMsg := message.NewErrorMessage(msg)
-	m, err := xml.Marshal(errMsg)
-	if err != nil {
-		// server error
-		log.Println("Server error sending broadcast", err.Error())
-		return
-	}
-	// Don't buffer error messages
-	sendMessage(who, m)
-}
-
-func isUserConnected(who *net.UDPAddr) (*User, bool) {
-	val, ok := connections[who.String()]
-	return val, ok
-}
-
-/// Handlers
+// ****** Server handlers  ****** //
 func loginHandler(m InternalMessage) {
 	usr, ok := isUserConnected(m.Sender)
 	if ok {
@@ -526,55 +656,12 @@ func fileHandler(m InternalMessage) {
 	sendMessaeToUserCheckBlocked(reciever, alias, mm)
 }
 
-// Client stuff
-func createFile(name string) {
-	// open output file
-	fo, err := os.Create(name)
-	if err != nil {
-		fmt.Errorf("Error opening file", name, err.Error(), "\n")
-	}
-	fo.Close()
-}
-
-func writeToFile(filename string, payload string) {
-	// TODO may be way too expensive
-	f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		fmt.Errorf("Error opening file", filename, err.Error(), "\n")
-		return
-	}
-	defer f.Close()
-	log.Println("On write to file, writing", payload, "to", filename)
-	// bytes := []byte(payload)
-	// w := bufio.NewWriter(f)
-	// n, err := w.Write(bytes[:len(bytes)])
-	n, err := f.WriteString(payload)
-	if err != nil {
-		fmt.Errorf("Couldn't wrote to file", filename, err.Error(), "\n")
-		return
-	}
-	if n <= 0 {
-		fmt.Errorf("Couldn't wrote to file", filename, "\n")
-		return
-	}
-	fmt.Println("Wrote ", n, "bytes to file")
-	f.Sync()
-	// err = w.Flush()
-	// if err != nil {
-	// 	fmt.Errorf("Error flushing file", filename, err.Error(), "\n")
-	// }
-}
-
-func closeFile() {
-	// I think there is nothing to do here
-	fmt.Println("Download succesful")
-}
-
 func exitHandler(m InternalMessage) {
 	// I guess that's it
 	disconnectUser(m.Sender)
 }
 
+// ****** Server senders  ****** //
 func sendBroadcast(broadcastMessage *message.SMessage) {
 	m, err := xml.Marshal(broadcastMessage)
 	if err != nil {
@@ -634,57 +721,6 @@ func fileSender(alias string, path string) {
 	sendXmlToServer(m)
 }
 
-// It's not found because we are using a different thing
-func getUserAlias(who *net.UDPAddr) (string, error) {
-	usr, ok := connections[who.String()]
-	if !ok {
-		return "", errors.New("Your user wasn't found. Please login first")
-	}
-	return usr.Alias, nil
-}
-
-// registerUser assumes that a user already was already chec
-func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
-	alias := loginMessage.Nickname
-	// Check that he doesn't exist already
-	var usr *User
-	usr, isAlreadyRegistered := users[alias]
-	if isAlreadyRegistered {
-		if usr.Online {
-			// That login is already used, choose a different one
-			sendError(who, "Login already taken, choose a different one")
-			return errors.New("Login already taken")
-		}
-
-		// Update to new status
-		usr.Address = who
-		usr.Online = true
-		sendPendingMessages(usr)
-
-	} else {
-		// Create a new user
-		usr = &User{alias,
-			who,
-			true,
-			make([]string, BLOCKED_INITIAL),
-			make([][]byte, 100),
-		}
-		users[usr.Alias] = usr
-	}
-	connections[who.String()] = usr
-	fmt.Println("Connections", connections)
-	return nil
-}
-
-func disconnectUser(who *net.UDPAddr) {
-	usr, ok := connections[who.String()]
-	if ok {
-		// User already known, set as offline
-		usr.Online = false
-	}
-	delete(connections, who.String())
-}
-
 func sendPendingMessages(usr *User) {
 	pending := usr.Pending
 	for _, message := range pending {
@@ -740,110 +776,88 @@ func sendMessage(whom *net.UDPAddr, msg []byte) error {
 	return errors.New("Couldn't send confirmation")
 }
 
-func handleClient(c <-chan []byte, confirmation chan<- []byte) {
-	fmt.Println("In handle client")
-	for {
-		b := <-c
-		fmt.Println("From handle client", string(b))
-		if message.IsConfirmation(b) {
-			confirmation <- b
-			continue
-		}
-		fmt.Println("Decoding user message")
-		t, m, err := message.DecodeServerMessage(b)
-		if err != nil {
-			fmt.Println("Error reading XML from server")
-			fmt.Println("Got", string(b))
-			continue
-		}
-		switch t {
-		case message.ERROR_T:
-			fmt.Println("Error from server:", m.Error.Message)
-		case message.DM_T:
-			msg := m.Direct
-			fmt.Println("Message from ", msg.From, ": ", msg.Message)
-		case message.BROAD_T:
-			msg := m.Direct
-			fmt.Println("Broadcast from ", msg.From, ": ", msg.Message)
+// ****** Server helpers  ****** //
 
-		case message.GET_CONN_T:
-			msg := m.Connected
-			fmt.Println("Connected users")
-			users := msg.Users.ConnUsers
-			for _, usr := range users {
-				fmt.Println("-", usr)
-			}
-
-		case message.FILE_T:
-			msg := m.File
-			switch msg.Kind {
-			// TODO Check blocked
-			case message.FILETRANSFER_START:
-				createFile(msg.Filename)
-			case message.FILETRANSFER_MID:
-				writeToFile(msg.Filename, msg.Cont)
-			case message.FILETRANSFER_END:
-				closeFile()
-			}
+// registerUser assumes that a user already was already chec
+func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
+	alias := loginMessage.Nickname
+	// Check that he doesn't exist already
+	var usr *User
+	usr, isAlreadyRegistered := users[alias]
+	if isAlreadyRegistered {
+		if usr.Online {
+			// That login is already used, choose a different one
+			sendError(who, "Login already taken, choose a different one")
+			return errors.New("Login already taken")
 		}
+
+		// Update to new status
+		usr.Address = who
+		usr.Online = true
+		sendPendingMessages(usr)
+
+	} else {
+		// Create a new user
+		usr = &User{alias,
+			who,
+			true,
+			make([]string, BLOCKED_INITIAL),
+			make([][]byte, 100),
+		}
+		users[usr.Alias] = usr
 	}
+	connections[who.String()] = usr
+	fmt.Println("Connections", connections)
+	return nil
 }
 
-func listenClient(conn *net.UDPConn, c chan<- []byte) {
-	buff := make([]byte, 1024)
-	for {
-		n, addr, err := conn.ReadFromUDP(buff)
-		if n > 0 && addr != nil {
-			// Copy the response
-			res := make([]byte, n)
-
-			// Trim newline
-			if string(buff[n-1]) == "\n" {
-				copy(res, buff[:n-1])
-			} else {
-				copy(res, buff[:n])
-			}
-			c <- res
-		}
-		if err != nil {
-			fmt.Println("Error reading from server", err)
-		}
+func disconnectUser(who *net.UDPAddr) {
+	usr, ok := connections[who.String()]
+	if ok {
+		// User already known, set as offline
+		usr.Online = false
 	}
+	delete(connections, who.String())
 }
 
-// listen handles any incomming connections and writes them to the channel
-// It doesn't deal with confirmation nor validation
-func listenServer() <-chan Message {
-	c := make(chan Message)
-	go func() {
-		buff := make([]byte, 1024)
+func blockUser(blocker string, blocked string) {
+	// Get both users
+	I, ok := users[blocker]
+	if !ok {
+		fmt.Errorf("Couldn't get the current alias for blocking", blocker)
+	}
+	_, ok = users[blocked]
+	if !ok {
+		fmt.Errorf("You can't block a user that is not registered!, you tried to block", blocked)
+	}
 
-		for {
-			n, addr, err := serverConn.ReadFromUDP(buff)
-			if n > 0 && addr != nil {
-				// Copy the response
-				res := make([]byte, n)
+	I.Blocked = append(I.Blocked, blocked)
+}
 
-				// Trim newline
-				if string(buff[n-1]) == "\n" {
-					copy(res, buff[:n-1])
-				} else {
-					copy(res, buff[:n])
-				}
+func sendError(who *net.UDPAddr, msg string) {
+	fmt.Println("Sending error to ", who.String())
+	fmt.Println("Message", msg)
+	errMsg := message.NewErrorMessage(msg)
+	m, err := xml.Marshal(errMsg)
+	if err != nil {
+		// server error
+		log.Println("Server error sending broadcast", err.Error())
+		return
+	}
+	// Don't buffer error messages
+	sendMessage(who, m)
+}
 
-				// Create the message
-				m := Message{Content: res,
-					Sender:    addr,
-					Timestamp: time.Now()}
-				// Send to the channel
-				c <- m
-			}
-			if err != nil {
-				// If it fails send a nil message
-				c <- Message{nil, nil, time.Now()}
-				break
-			}
-		}
-	}()
-	return c
+func isUserConnected(who *net.UDPAddr) (*User, bool) {
+	val, ok := connections[who.String()]
+	return val, ok
+}
+
+// It's not found because we are using a different thing
+func getUserAlias(who *net.UDPAddr) (string, error) {
+	usr, ok := connections[who.String()]
+	if !ok {
+		return "", errors.New("Your user wasn't found. Please login first")
+	}
+	return usr.Alias, nil
 }
