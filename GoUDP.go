@@ -22,6 +22,7 @@ const (
 	MILIS_BETWEEN_RETRY = 200
 	MAX_RETRY           = 3
 	BLOCKED_INITIAL     = 10
+	SYNC_CLOCK_PERIOD   = 30 //seconds
 )
 
 // Each incoming connection will have a message with whatever they want to send
@@ -71,6 +72,8 @@ var myAlias string
 var startServer chan ServerPetition
 var stopServer chan ServerPetition
 var sendingChannel chan []byte
+
+var myTime time.Time
 
 // Brain rant
 // We need to get several channels
@@ -151,6 +154,8 @@ func client(port string, confirmation chan []byte) {
 	c := make(chan []byte)
 	go listenClient(clientConn, c)
 	go handleClient(c, confirmation)
+	myTime = time.Now()
+	go syncClockWithServer(time.Second * SYNC_CLOCK_PERIOD)
 	getUserInput()
 }
 
@@ -275,6 +280,18 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 				closeFile()
 			}
 		}
+	}
+}
+
+// ****** Time client  ****** //
+// Sender
+func syncClockWithServer(period time.Duration) {
+	c := time.Tick(period)
+	for _ = range c {
+		myTime = myTime.Add(period)
+		fmt.Println(myTime)
+		m := message.NewClockMessage(myTime)
+		sendXmlToServer(m)
 	}
 }
 
