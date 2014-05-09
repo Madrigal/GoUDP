@@ -3,6 +3,7 @@ package message
 import (
 	"encoding/xml"
 	"errors"
+	"time"
 )
 
 const (
@@ -14,6 +15,7 @@ const (
 	ERROR    = "Error"
 	BLOCK    = "Block"
 	FILE     = "FILE"
+	CLOCK    = "Clock"
 )
 
 type Type int
@@ -27,6 +29,7 @@ const (
 	GET_CONN_T Type = iota
 	BLOCK_T    Type = iota
 	FILE_T     Type = iota
+	CLOCK_T    Type = iota
 	EXIT_T     Type = iota
 )
 
@@ -99,6 +102,16 @@ type ErrorMessage struct {
 	Message string `xml:"Message"`
 }
 
+// ClockMessage is send by both the client and
+// the server. When the client sends it is just
+// saying "I have this time". When the server
+// sends it is "Synch to this time"
+type ClockMessage struct {
+	XMLName xml.Name `xml:"Root"`
+	Base
+	Time time.Time `xml:"Time"`
+}
+
 // This type will decode an incoming message
 // The UserPackage will hold the actual values
 type UserMessage struct {
@@ -118,6 +131,7 @@ type UserPackage struct {
 	UGetConnected *UGetConnected
 	UExit         *UExit
 	File          *FileMessage
+	Clock         *ClockMessage
 }
 
 type ServerPackage struct {
@@ -126,6 +140,7 @@ type ServerPackage struct {
 	Block     *Block
 	Error     *ErrorMessage
 	File      *FileMessage
+	Clock     *ClockMessage
 }
 
 func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
@@ -185,6 +200,18 @@ func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
 		}
 
 		return FILE_T, &mp, nil
+
+	case CLOCK:
+		var c ClockMessage
+		err := xml.Unmarshal(msg, &c)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: File message malformed")
+		}
+		mp := ServerPackage{
+			Clock: &c,
+		}
+
+		return CLOCK_T, &mp, nil
 
 	case ERROR:
 		var u ErrorMessage
@@ -277,6 +304,18 @@ func DecodeUserMessage(msg []byte) (Type, *UserPackage, error) {
 
 		return FILE_T, &up, nil
 
+	case CLOCK:
+		var c ClockMessage
+		err := xml.Unmarshal(msg, &c)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: File message malformed")
+		}
+		up := UserPackage{
+			Clock: &c,
+		}
+
+		return CLOCK_T, &up, nil
+
 	case EXIT:
 		var u UExit
 		err := xml.Unmarshal(msg, &u)
@@ -330,6 +369,12 @@ func NewBlock(who string, blocking string) Block {
 	base := Base{Type: BLOCK}
 	bm := Block{Base: base, Blocker: who, Blocked: blocking}
 	return bm
+}
+
+func NewClockMessage(t time.Time) ClockMessage {
+	base := Base{Type: CLOCK}
+	cm := ClockMessage{Base: base, Time: t}
+	return cm
 }
 
 ///// Server calls
