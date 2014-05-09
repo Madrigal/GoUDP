@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,6 +23,7 @@ const (
 	MILIS_BETWEEN_RETRY = 200
 	MAX_RETRY           = 3
 	BLOCKED_INITIAL     = 10
+	TIME_BETWEEN_CLOCK  = 10
 )
 
 // Each incoming connection will have a message with whatever they want to send
@@ -182,6 +184,7 @@ func initServer(port string) *net.UDPConn {
 	if err != nil {
 		log.Fatal("error listening on UDP port ", port, err)
 	}
+	go sendTimeRequest(time.Second * TIME_BETWEEN_CLOCK)
 	log.Println("Listening on ", udpAddress)
 	return conn
 }
@@ -546,6 +549,24 @@ func handleIncoming() <-chan Message {
 			exitHandler(internalM)
 
 		}
+	}
+}
+
+// ****** Server time  ****** //
+func sendTimeRequest(period time.Duration) {
+	c := time.Tick(period)
+	mutex := sync.Mutex{}
+	for _ = range c {
+		mutex.Lock()
+		// Ugly, but I'm lazy.
+		// A message with value 0 means "Give me your time"
+		m := message.ClockMessage{}
+		mm, _ := xml.Marshal(m)
+		fmt.Println("Sending time to user", m)
+		for _, u := range connections {
+			sendMessageToUser(u, mm)
+		}
+		mutex.Unlock()
 	}
 }
 
