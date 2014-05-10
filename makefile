@@ -1,4 +1,5 @@
 PROJECT_ROOT := $(shell pwd)
+export GO_PROJECT_ROOT=$(PROJECT_ROOT)
 VENDOR_PATH  := $(PROJECT_ROOT)/vendor
 GOPATH := $(PROJECT_ROOT):$(VENDOR_PATH)
 
@@ -14,4 +15,4 @@ example:
 	go run src/examples/weather.go
 
 twitter:
-	go run deleteme.go
+	go run src/examples/twitter.go
