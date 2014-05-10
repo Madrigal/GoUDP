@@ -11,7 +11,7 @@
 - <del> Send files (not necessarily P2P) </del>
 - <del> Collect user clocks on n time </del>
 - <del> Update using Berkeley algorithm </del>
-- Connect with <del>FB</del> Twitter :) (https://github.com/carbocation/twitter)
+- <del> Connect with <del>FB</del> Twitter :) (https://github.com/carbocation/twitter) </del>
 - Figure out how to change server at runtime
 - Create an abstraction layer for communicating with other client
 
