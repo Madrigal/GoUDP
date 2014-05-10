@@ -1,5 +1,6 @@
 PROJECT_ROOT := $(shell pwd)
-GOPATH := $(PROJECT_ROOT)
+VENDOR_PATH  := $(PROJECT_ROOT)/vendor
+GOPATH := $(PROJECT_ROOT):$(VENDOR_PATH)
 
 all: server
 
@@ -11,3 +12,6 @@ client:
 
 example:
 	go run src/examples/weather.go
+
+twitter:
+	go run deleteme.go
