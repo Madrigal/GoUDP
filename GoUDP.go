@@ -183,6 +183,12 @@ func updateClock(clock *time.Time, period time.Duration) {
 	}
 }
 
+func updateClockWithOffset(offset time.Duration) {
+	log.Println("[Client] Updating clock with new offset", offset)
+	// TODO probably add a global mutex to this var
+	myTime = myTime.Add(offset)
+}
+
 // ****** Controlling the server  ****** //
 func serverControl() {
 	for {
@@ -311,6 +317,10 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 			msg := m.Clock
 			fmt.Println("Pinche clock")
 			sendOffsetToServer(msg.Time)
+
+		case message.OFFSET_T:
+			// Update your clock
+			updateClockWithOffset(m.Offset.Offset)
 		}
 	}
 }
