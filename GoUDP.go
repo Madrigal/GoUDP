@@ -299,12 +299,7 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 			// Check if request or response
 			msg := m.Clock
 			fmt.Println("Pinche clock")
-			if msg.Time.IsZero() {
-				fmt.Println("Pinche request")
-				sendTimeToServer()
-			} else {
-				fmt.Println("Pinche response", msg.Time)
-			}
+			sendOffsetToServer(msg.Time)
 		}
 	}
 }
@@ -415,8 +410,11 @@ func handleUserInput(line string) {
 }
 
 // ****** Client time to server ****** //
-func sendTimeToServer() {
-	m := message.NewClockMessage(myTime)
+func sendOffsetToServer(serverTime time.Time) {
+	// Calculate offset
+	offset := myTime.Sub(serverTime)
+	m := message.NewClockOffset(offset)
+	log.Println("Client has offset of", offset)
 	sendXmlToServer(m)
 }
 
@@ -548,6 +546,7 @@ func handleIncoming() <-chan Message {
 		if err != nil {
 			fmt.Println("Error reading XML. Please check it")
 			fmt.Println("Got", string(m.Content))
+			fmt.Println("Error from server, got", err.Error())
 			sendError(m.Sender, "Error reading XML. Please check it")
 			continue
 		}
@@ -580,6 +579,9 @@ func handleIncoming() <-chan Message {
 		case message.FILE_T:
 			fileHandler(internalM)
 
+		case message.OFFSET_T:
+			clockHandler(internalM)
+
 		case message.EXIT_T:
 			exitHandler(internalM)
 
@@ -593,9 +595,9 @@ func sendTimeRequest(period time.Duration) {
 	mutex := sync.Mutex{}
 	for _ = range c {
 		mutex.Lock()
-		// Ugly, but I'm lazy.
-		// A message with value 0 means "Give me your time"
-		m := message.NewClockMessage(time.Time{})
+		// For server time is always time.Now, since he
+		// doesn't adjust his clock
+		m := message.NewClockSyncPetition(time.Now())
 		mm, _ := xml.Marshal(m)
 		fmt.Println("Sending time to user", m)
 		for _, u := range connections {
@@ -710,6 +712,11 @@ func fileHandler(m InternalMessage) {
 		log.Println("Error marshaling file, reason", err.Error())
 	}
 	sendMessaeToUserCheckBlocked(reciever, alias, mm)
+}
+
+func clockHandler(m InternalMessage) {
+	offsetM := m.Content.Clock
+	log.Println("Server got", offsetM)
 }
 
 func exitHandler(m InternalMessage) {

@@ -16,6 +16,7 @@ const (
 	BLOCK    = "Block"
 	FILE     = "FILE"
 	CLOCK    = "Clock"
+	OFFSET   = "TimeOffset"
 )
 
 type Type int
@@ -30,6 +31,7 @@ const (
 	BLOCK_T    Type = iota
 	FILE_T     Type = iota
 	CLOCK_T    Type = iota
+	OFFSET_T   Type = iota
 	EXIT_T     Type = iota
 )
 
@@ -102,14 +104,22 @@ type ErrorMessage struct {
 	Message string `xml:"Message"`
 }
 
-// ClockMessage is send by both the client and
-// the server. When the client sends it is just
-// saying "I have this time". When the server
-// sends it is "Synch to this time"
-type ClockMessage struct {
+// ClockMessage is send by the server
+// so clients will respond with
+// the offset from this time
+type ClockSyncPetition struct {
 	XMLName xml.Name `xml:"Root"`
 	Base
 	Time time.Time `xml:"Time"`
+}
+
+// Ths is the message that the client sends to the server
+// saying "Im n duration ahead/behind you", and server
+// respons with this message to make adjustments
+type ClockOffset struct {
+	XMLName xml.Name `xml:"Root"`
+	Base
+	Offset time.Duration `xml:"offset"`
 }
 
 // This type will decode an incoming message
@@ -131,7 +141,7 @@ type UserPackage struct {
 	UGetConnected *UGetConnected
 	UExit         *UExit
 	File          *FileMessage
-	Clock         *ClockMessage
+	Clock         *ClockOffset
 }
 
 type ServerPackage struct {
@@ -140,7 +150,8 @@ type ServerPackage struct {
 	Block     *Block
 	Error     *ErrorMessage
 	File      *FileMessage
-	Clock     *ClockMessage
+	Clock     *ClockSyncPetition
+	Offset    *ClockOffset
 }
 
 func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
@@ -202,7 +213,7 @@ func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
 		return FILE_T, &mp, nil
 
 	case CLOCK:
-		var c ClockMessage
+		var c ClockSyncPetition
 		err := xml.Unmarshal(msg, &c)
 		if err != nil {
 			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: File message malformed")
@@ -212,6 +223,18 @@ func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
 		}
 
 		return CLOCK_T, &mp, nil
+
+	case OFFSET:
+		var c ClockOffset
+		err := xml.Unmarshal(msg, &c)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: File message malformed")
+		}
+		mp := ServerPackage{
+			Offset: &c,
+		}
+
+		return OFFSET_T, &mp, nil
 
 	case ERROR:
 		var u ErrorMessage
@@ -304,8 +327,8 @@ func DecodeUserMessage(msg []byte) (Type, *UserPackage, error) {
 
 		return FILE_T, &up, nil
 
-	case CLOCK:
-		var c ClockMessage
+	case OFFSET:
+		var c ClockOffset
 		err := xml.Unmarshal(msg, &c)
 		if err != nil {
 			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: File message malformed")
@@ -314,7 +337,7 @@ func DecodeUserMessage(msg []byte) (Type, *UserPackage, error) {
 			Clock: &c,
 		}
 
-		return CLOCK_T, &up, nil
+		return OFFSET_T, &up, nil
 
 	case EXIT:
 		var u UExit
@@ -371,10 +394,16 @@ func NewBlock(who string, blocking string) Block {
 	return bm
 }
 
-func NewClockMessage(t time.Time) ClockMessage {
+func NewClockSyncPetition(t time.Time) ClockSyncPetition {
 	base := Base{Type: CLOCK}
-	cm := ClockMessage{Base: base, Time: t}
+	cm := ClockSyncPetition{Base: base, Time: t}
 	return cm
+}
+
+func NewClockOffset(t time.Duration) ClockOffset {
+	base := Base{Type: OFFSET}
+	co := ClockOffset{Base: base, Offset: t}
+	return co
 }
 
 ///// Server calls

@@ -9,7 +9,8 @@
 - <del> Add message type for files </del>
 - <del> Package file in messages </del>
 - <del> Send files (not necessarily P2P) </del>
-- Synch clocks
+- Collect user clocks on n time
+- If bigger than 0 send the offset (fuck we are sending time instead of offset)
 - Connect with <del>FB</del> Twitter :) (https://github.com/carbocation/twitter)
 - Figure out how to change server at runtime
 - Create an abstraction layer for communicating with other client
