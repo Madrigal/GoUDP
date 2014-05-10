@@ -42,6 +42,9 @@ var users map[string]*User
 var connections map[string]*User
 var serverConn *net.UDPConn
 
+var areWeGettingClocks bool
+var userClocks []clockMessage
+
 type InternalMessage struct {
 	Type      message.Type
 	Content   *message.UserPackage
@@ -55,6 +58,13 @@ type User struct {
 	Online  bool
 	Blocked []string
 	Pending [][]byte
+}
+
+type clockMessage struct {
+	User       *net.UDPAddr
+	Offset     *time.Duration
+	Timestamp  *time.Time
+	ServerTime *time.Time
 }
 
 // ******** Client stuff  ******** //
@@ -101,6 +111,7 @@ func init() {
 	startServer = make(chan ServerPetition, 1)
 	stopServer = make(chan ServerPetition, 1)
 	sendingChannel = make(chan []byte)
+	userClocks = make([]clockMessage, 1)
 }
 
 func main() {
@@ -595,6 +606,55 @@ func sendTimeRequest(period time.Duration) {
 	mutex := sync.Mutex{}
 	for _ = range c {
 		mutex.Lock()
+		areWeGettingClocks = true
+		time.AfterFunc(period/2, func() {
+			// Stop getting clocks after n time and send updates
+			log.Println("Stop recieving time")
+			areWeGettingClocks = false
+			var sumOfClocks int64
+			var computedCloks int64
+			for _, c := range userClocks {
+				// FIXME
+				// Calculate average
+				// TODO Probably should check for overflow
+				log.Println("user clocks", userClocks)
+				log.Println(c)
+				if c.Timestamp == nil {
+					continue
+				}
+				sumOfClocks += c.Timestamp.Unix()
+				computedCloks++
+			}
+			average := sumOfClocks / computedCloks
+			log.Println("Clock average", average)
+			// Create new time object and send to users
+			// "0" since we don't have nanoseconds
+			averageTime := time.Unix(average, 0)
+
+			// Then send that average to all users that need to adjust their clocks
+			// Now send it to all users
+			for i, u := range userClocks {
+				// This gives me an offset.
+				// FIXME
+				if u.Timestamp == nil {
+					continue
+				}
+				adjustment := averageTime.Sub(*u.Timestamp)
+				m := message.NewClockOffset(adjustment)
+				log.Println("Adjustment for user", i, adjustment)
+				log.Println("Becasue user has", *u.Timestamp)
+				mm, _ := xml.Marshal(m)
+				// Get user reference
+				usr, ok := connections[u.User.String()]
+				if !ok {
+					log.Println("error sending message to user with address", userClocks[i].User.String())
+				}
+				sendMessageToUser(usr, mm)
+			}
+
+			// Finally, clear slice
+			userClocks = userClocks[:0]
+		})
 		// For server time is always time.Now, since he
 		// doesn't adjust his clock
 		m := message.NewClockSyncPetition(time.Now())
@@ -717,6 +777,21 @@ func fileHandler(m InternalMessage) {
 func clockHandler(m InternalMessage) {
 	offsetM := m.Content.Clock
 	log.Println("Server got", offsetM)
+	if !areWeGettingClocks {
+		// Ignore value
+		log.Println("Clock handler rejected message")
+		return
+	}
+	log.Println("Clock handler accepted message")
+	serverTime := time.Now()
+	timestamp := serverTime.Add(offsetM.Offset)
+	message := clockMessage{
+		User:       m.Sender,
+		Offset:     &offsetM.Offset,
+		Timestamp:  &timestamp,
+		ServerTime: &serverTime,
+	}
+	userClocks = append(userClocks, message)
 }
 
 func exitHandler(m InternalMessage) {
