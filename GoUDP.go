@@ -10,10 +10,12 @@ import (
 	"log"
 	"message"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
 	"time"
+	"twitterWrapper"
 )
 
 const (
@@ -392,14 +394,17 @@ func handleUserInput(line string) {
 		m := message.NewBlock(myAlias, who)
 		sendXmlToServer(m)
 
-	case l == "/fb":
-		if length <= 2 {
+	case l == "/twitter":
+		if length < 2 {
 			fmt.Println("Missing arguments")
 			return
 		}
 		message := strings.Join(arr[1:length], " ")
-		// TODO
-		fmt.Println("/FB", message)
+		client, err := twitterWrapper.NewClient()
+		if err != nil {
+			log.Println("Twitter creation failed, reason", err)
+		}
+		client.Update(message, url.Values{})
 
 	case l == "/quit":
 		m := message.NewExit()

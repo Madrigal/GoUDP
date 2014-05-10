@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	// "github.com/xiam/twitter"
 	"log"
 	"net/url"
 	"twitterWrapper"
