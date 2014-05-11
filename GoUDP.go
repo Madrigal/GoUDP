@@ -218,18 +218,18 @@ func serverControl() {
 }
 
 func initServer(port string) *net.UDPConn {
-	log.Println("Starting server")
+	log.Println("[Client] Starting server")
 	udpAddress, err := net.ResolveUDPAddr("udp4", port)
 	if err != nil {
-		log.Fatal("error resolving UDP address on ", port, err)
+		log.Fatal("[Client] error resolving UDP address on ", port, err)
 	}
 	conn, err := net.ListenUDP("udp", udpAddress)
 	if err != nil {
-		log.Fatal("error listening on UDP port ", port, err)
+		log.Fatal("[Client] error listening on UDP port ", port, err)
 	}
 	go sendTimeRequest(time.Second * TIME_BETWEEN_CLOCK)
 	go sendAddresses(time.Second*10, 20)
-	log.Println("Listening on ", udpAddress)
+	log.Println("[Client] Listening on ", udpAddress)
 	return conn
 }
 
@@ -238,7 +238,7 @@ func killServer() {
 	var err error
 	// Sanity check
 	if serverConn == nil {
-		log.Println("Trying to stop a non started server!")
+		log.Println("[Client] Trying to stop a non started server!")
 		return
 	}
 	for retries = 3; retries > 0; retries-- {
@@ -315,31 +315,29 @@ func listenClient(conn *net.UDPConn, c chan<- []byte) {
 			c <- res
 		}
 		if err != nil {
-			fmt.Println("Error reading from server", err)
+			fmt.Println("[Client] Error reading from server", err)
 		}
 	}
 }
 
 func handleClient(c <-chan []byte, confirmation chan<- []byte) {
-	fmt.Println("In handle client")
 	for {
 		b := <-c
-		fmt.Println("From handle client", string(b))
+		log.Println("[Client] From handle client", string(b))
 		if message.IsConfirmation(b) {
 			confirmation <- b
 			continue
 		}
-		fmt.Println("Decoding user message")
 		t, m, err := message.DecodeServerMessage(b)
 		if err != nil {
-			fmt.Println("Error reading XML from server")
-			fmt.Println("Got", string(b))
-			log.Println(err.Error())
+			fmt.Println("[Client] Error reading XML from server")
+			fmt.Println("[Client] Got", string(b))
+			log.Println("[Client] ", err.Error())
 			continue
 		}
 		switch t {
 		case message.ERROR_T:
-			fmt.Println("Error from server:", m.Error.Message)
+			log.Println("[Client] Error from server:", m.Error.Message)
 
 		case message.LOGIN_RES_T:
 			// Update your address
@@ -376,7 +374,7 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 		case message.CLOCK_T:
 			// Check if request or response
 			msg := m.Clock
-			fmt.Println("Pinche clock")
+			log.Println("[Client] Clock mesage", m.Clock)
 			sendOffsetToServer(msg.Time)
 
 		case message.OFFSET_T:
@@ -508,7 +506,7 @@ func sendOffsetToServer(serverTime time.Time) {
 	// Calculate offset
 	offset := myTime.Sub(serverTime)
 	m := message.NewClockOffset(offset)
-	log.Println("Client has offset of", offset)
+	log.Println("[Client] Client has offset of", offset)
 	sendXmlToServer(m)
 }
 
@@ -520,7 +518,7 @@ func sendOffsetToServer(serverTime time.Time) {
 func sendXmlToServer(xmlMessage interface{}) {
 	bytes, err := xml.Marshal(xmlMessage)
 	if err != nil {
-		fmt.Println("Error marshaling", err)
+		log.Println("[Client] Error marshaling", err)
 	}
 	sendingChannel <- bytes
 }
@@ -531,10 +529,11 @@ func sendXmlToServer(xmlMessage interface{}) {
 func sendDataToServer(sending chan []byte, confirmation chan []byte) {
 	for {
 		bytes := <-sending
-		fmt.Println("From send data to server ", string(bytes))
+		log.Println("[Client] From send data to server ", string(bytes))
 		clientConn.Write(bytes)
+		// TODO Add a timeout here
 		<-confirmation
-		fmt.Println("Got confirmation")
+		log.Println("[Client] Got confirmation")
 	}
 }
 
@@ -543,7 +542,7 @@ func createFile(name string) {
 	// open output file
 	fo, err := os.Create(name)
 	if err != nil {
-		fmt.Errorf("Error opening file", name, err.Error(), "\n")
+		log.Println("[Client] Error opening file", name, err.Error(), "\n")
 	}
 	fo.Close()
 }
@@ -552,21 +551,21 @@ func writeToFile(filename string, payload string) {
 	// TODO may be way too expensive
 	f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
-		fmt.Errorf("Error opening file", filename, err.Error(), "\n")
+		log.Println("[Client] Error opening file", filename, err.Error(), "\n")
 		return
 	}
 	defer f.Close()
-	log.Println("On write to file, writing", payload, "to", filename)
+	log.Println("[Client] On write to file, writing", payload, "to", filename)
 	n, err := f.WriteString(payload)
 	if err != nil {
-		fmt.Errorf("Couldn't wrote to file", filename, err.Error(), "\n")
+		log.Println("[Client] Couldn't wrote to file", filename, err.Error(), "\n")
 		return
 	}
 	if n <= 0 {
-		fmt.Errorf("Couldn't wrote to file", filename, "\n")
+		log.Println("[Client] Couldn't wrote to file", filename, "\n")
 		return
 	}
-	fmt.Println("Wrote ", n, "bytes to file")
+	log.Println("[Client] Wrote ", n, "bytes to file")
 	f.Sync()
 }
 
@@ -624,23 +623,23 @@ func handleIncoming() <-chan Message {
 		if m.Content == nil {
 			continue
 		}
-		fmt.Println("Content", string(m.Content))
-		fmt.Println("From address", *m.Sender)
-		fmt.Println("In time", m.Timestamp)
+		log.Println("[Server] Content", string(m.Content))
+		log.Println("[Server] From address", *m.Sender)
+		log.Println("[Server] In time", m.Timestamp)
 		msg := []byte("OK")
 		err := sendMessage(m.Sender, msg)
 		if err != nil {
 			// Assume he went offline
-			log.Println("Couldn't write message ", string(msg), "to ", m.Sender)
+			log.Println("[Server] Couldn't write message ", string(msg), "to ", m.Sender)
 			disconnectUser(m.Sender)
 
 		}
 		// Convert to internal message
 		t, p, err := message.DecodeUserMessage(m.Content)
 		if err != nil {
-			fmt.Println("Error reading XML. Please check it")
-			fmt.Println("Got", string(m.Content))
-			fmt.Println("Error from server, got", err.Error())
+			log.Println("[Server] Error reading XML. Please check it")
+			log.Println("[Server] Got", string(m.Content))
+			log.Println("[Server] Error from server, got", err.Error())
 			sendError(m.Sender, "Error reading XML. Please check it")
 			continue
 		}
@@ -692,7 +691,7 @@ func sendTimeRequest(period time.Duration) {
 		areWeGettingClocks = true
 		time.AfterFunc(period/2, func() {
 			// Stop getting clocks after n time and send updates
-			log.Println("Stop recieving time")
+			log.Println("[Server] Stop recieving time")
 			// Sanity check, if no one is here return
 			if len(connections) == 0 {
 				return
@@ -704,8 +703,8 @@ func sendTimeRequest(period time.Duration) {
 				// FIXME
 				// Calculate average
 				// TODO Probably should check for overflow
-				log.Println("user clocks", userClocks)
-				log.Println(c)
+				log.Println("[Server] user clocks", userClocks)
+				log.Println("[Server] ", c)
 				if c.Timestamp == nil {
 					continue
 				}
@@ -713,7 +712,7 @@ func sendTimeRequest(period time.Duration) {
 				computedCloks++
 			}
 			average := sumOfClocks / computedCloks
-			log.Println("Clock average", average)
+			log.Println("[Server] Clock average", average)
 			// Create new time object and send to users
 			// "0" since we don't have nanoseconds
 			averageTime := time.Unix(average, 0)
@@ -728,13 +727,13 @@ func sendTimeRequest(period time.Duration) {
 				}
 				adjustment := averageTime.Sub(*u.Timestamp)
 				m := message.NewClockOffset(adjustment)
-				log.Println("Adjustment for user", i, adjustment)
-				log.Println("Becasue user has", *u.Timestamp)
+				log.Println("[Server] Adjustment for user", i, adjustment)
+				log.Println("[Server] Becasue user has", *u.Timestamp)
 				mm, _ := xml.Marshal(m)
 				// Get user reference
 				usr, ok := connections[u.User.String()]
 				if !ok {
-					log.Println("error sending message to user with address", userClocks[i].User.String())
+					log.Println("[Server] error sending message to user with address", userClocks[i].User.String())
 				}
 				sendMessageToUser(usr, mm)
 			}
@@ -746,7 +745,7 @@ func sendTimeRequest(period time.Duration) {
 		// doesn't adjust his clock
 		m := message.NewClockSyncPetition(time.Now())
 		mm, _ := xml.Marshal(m)
-		fmt.Println("Sending time to user", m)
+		log.Println("[Server] Sending time to user", m)
 		for _, u := range connections {
 			sendMessageToUser(u, mm)
 		}
@@ -787,10 +786,10 @@ func loginHandler(m InternalMessage) {
 		// User is already connected, meanning he already picked an alias
 		// don't do anything.
 		// Maybe this could be an error, but it seems to much
-		log.Println("User already connected", usr)
+		log.Println("[Server] User already connected", usr)
 	} else {
 		// Means we haven't seen him before
-		fmt.Println("Registring new connection", m.Sender)
+		log.Println("[Server] Registring new connection", m.Sender)
 		err := registerUser(m.Sender, m.Content.Login)
 		if err != nil {
 			sendError(m.Sender, err.Error())
@@ -805,7 +804,7 @@ func broadcastHandler(m InternalMessage) {
 		sendError(m.Sender, "Fail to send broadcast, reason"+err.Error())
 	}
 	msg := message.NewSBroadcast(alias, m.Content.UMessage.Message)
-	fmt.Println(msg)
+	log.Println("[Server] ", msg)
 	sendBroadcast(&msg)
 }
 
@@ -851,13 +850,13 @@ func getConnectedHandler(m InternalMessage) {
 	// Prepare the message to be sent
 	mm, err := xml.Marshal(msg)
 	if err != nil {
-		log.Println("Error marshaling getConnected, reason", err.Error())
+		log.Println("[Server] Error marshaling getConnected, reason", err.Error())
 	}
 
 	// Get reference to the user who sent this
 	usr, ok := connections[m.Sender.String()]
 	if !ok {
-		log.Println("Fuck!!!")
+		log.Println("[Server] Fuck!!!")
 	}
 
 	// Send it!
@@ -882,7 +881,7 @@ func fileHandler(m InternalMessage) {
 	}
 	mm, err := xml.Marshal(fm)
 	if err != nil {
-		log.Println("Error marshaling file, reason", err.Error())
+		log.Println("[Server] Error marshaling file, reason", err.Error())
 	}
 	sendMessaeToUserCheckBlocked(reciever, alias, mm)
 }
@@ -935,14 +934,14 @@ func fileSender(alias string, path string) {
 	log.Println("Sending file")
 	file, err := os.Open(path)
 	if err != nil {
-		fmt.Println("Error opening file in ", path, " ", err.Error())
+		log.Println("[Server] Error opening file in ", path, " ", err.Error())
 		return
 	}
 	defer file.Close()
 	// TODO temporary fix
 	path = "temp.txt"
 	start := message.NewFileStart(alias, path)
-	fmt.Println(start)
+	log.Println("[Server] ", start)
 	sendXmlToServer(start)
 	r := bufio.NewReader(file)
 
@@ -952,23 +951,21 @@ func fileSender(alias string, path string) {
 	for {
 		n, err := r.Read(buf)
 		if err != nil && err != io.EOF {
-			fmt.Errorf("pinshi error")
+			log.Println("[Server] pinshi error")
 		}
 		if n == 0 {
 			log.Println("Got no bytes from file", path)
 			break
 		}
-		fmt.Println("Readed >>")
-		fmt.Println(string(buf[:n]))
+		log.Println("[Server] Readed >>")
+		log.Println("[Server]", string(buf[:n]))
 
 		m = message.NewFileSend(alias, path, buf[:n])
 		sendXmlToServer(m)
-		fmt.Println(m)
 
 	}
 	// Send final message
 	m = message.NewFileEnd(alias, path)
-	fmt.Println(m)
 	sendXmlToServer(m)
 }
 
@@ -1077,24 +1074,24 @@ func blockUser(blocker string, blocked string) {
 	// Get both users
 	I, ok := users[blocker]
 	if !ok {
-		fmt.Errorf("Couldn't get the current alias for blocking", blocker)
+		log.Println("[Server] Couldn't get the current alias for blocking", blocker)
 	}
 	_, ok = users[blocked]
 	if !ok {
-		fmt.Errorf("You can't block a user that is not registered!, you tried to block", blocked)
+		log.Println("[Server] You can't block a user that is not registered!, you tried to block", blocked)
 	}
 
 	I.Blocked = append(I.Blocked, blocked)
 }
 
 func sendError(who *net.UDPAddr, msg string) {
-	fmt.Println("Sending error to ", who.String())
-	fmt.Println("Message", msg)
+	log.Println("[Server] Sending error to ", who.String())
+	log.Println("[Server] Message", msg)
 	errMsg := message.NewErrorMessage(msg)
 	m, err := xml.Marshal(errMsg)
 	if err != nil {
 		// server error
-		log.Println("Server error sending broadcast", err.Error())
+		log.Println("[Server] Server error sending broadcast", err.Error())
 		return
 	}
 	// Don't buffer error messages
