@@ -176,7 +176,6 @@ func client(port string, confirmation chan []byte) {
 	go listenClient(clientConn, c)
 	go handleClient(c, confirmation)
 	go updateClock(&myTime, time.Second*3)
-	go checkIfServer(time.Second * 20)
 	getUserInput()
 }
 
@@ -250,16 +249,6 @@ func killServer() {
 	}
 	if retries == 0 {
 		panic("Couldn't stop the server, reason" + err.Error())
-	}
-}
-
-// Check if server is alive
-func checkIfServer(period time.Duration) {
-	c := time.Tick(period)
-	for _ = range c {
-		if noServer && !inVotingProcess {
-			startVotingAlgorithm()
-		}
 	}
 }
 
@@ -525,22 +514,23 @@ func sendXmlToServer(xmlMessage interface{}) {
 
 // sendDataToServer is a queue of messages for the server. It recieves a message
 // writes it to the connectin and waits for confirmation
-// TODO should add a timeout
 func sendDataToServer(sending chan []byte, confirmation chan []byte) {
+	timeoutsLeft := 3
 	for {
 		bytes := <-sending
 		log.Println("[Client] From send data to server ", string(bytes))
 		clientConn.Write(bytes)
-		timeout := make(chan bool, 1)
-		go func() {
-			time.Sleep(1 * time.Second)
-			timeout <- true
-		}()
 		select {
 		case <-confirmation:
 			log.Println("[Client] Got confirmation")
-		case <-timeout:
+			timeoutsLeft = 3
+		case <-time.After(1 * time.Second):
 			log.Println("[Client] Timeout!")
+			timeoutsLeft--
+			if timeoutsLeft <= 0 && !inVotingProcess {
+				log.Println("[Client] timeouts over, starting new server")
+				startVotingAlgorithm()
+			}
 		}
 	}
 }
