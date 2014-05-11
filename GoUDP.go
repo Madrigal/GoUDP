@@ -176,6 +176,7 @@ func client(port string, confirmation chan []byte) {
 	go listenClient(clientConn, c)
 	go handleClient(c, confirmation)
 	go updateClock(&myTime, time.Second*3)
+	go checkIfServer(time.Second * 20)
 	getUserInput()
 }
 
@@ -250,6 +251,50 @@ func killServer() {
 	if retries == 0 {
 		panic("Couldn't stop the server, reason" + err.Error())
 	}
+}
+
+// Check if server is alive
+func checkIfServer(period time.Duration) {
+	c := time.Tick(period)
+	for _ = range c {
+		if noServer && !inVotingProcess {
+			startVotingAlgorithm()
+		}
+	}
+}
+
+func startVotingAlgorithm() {
+	inVotingProcess = true
+	for usr, _ := range otherClientsAddress {
+		sendMessageWithMyPid(usr, myAddress)
+	}
+	// Give some time to collect messages
+	time.Sleep(time.Second * 10)
+	// for _, resp := range votingResponses {
+	// 	// Acknowledege was sent before, don't worry about that
+
+	// 	if resp.Address > myAddress {
+	// 		// Someone else is becoming the server, don't worry :)
+	// 		return
+	// 	}
+	// }
+	// // No one greater responed, we are becoming the server
+
+	// startBecomingTheServer()
+}
+
+func startBecomingTheServer() {
+	// ? Send message saying that I'm the new server
+
+	// Start the server
+	s := ServerPetition{GlobalPort}
+	inVotingProcess = false
+	noServer = false
+	startServer <- s
+}
+
+func sendMessageWithMyPid(addr int, myaddr int) {
+	// die
 }
 
 // ****** Listen messages from the server  ****** //
