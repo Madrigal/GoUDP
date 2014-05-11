@@ -88,7 +88,7 @@ var startServer chan ServerPetition
 var stopServer chan ServerPetition
 var sendingChannel chan []byte
 
-var otherClientsAddress []string
+var otherClientsAddress map[int]bool
 
 // Brain rant
 // We need to get several channels
@@ -117,7 +117,7 @@ func init() {
 	stopServer = make(chan ServerPetition, 1)
 	sendingChannel = make(chan []byte)
 	userClocks = make([]clockMessage, 1)
-	otherClientsAddress = make([]string, 1)
+	otherClientsAddress = make(map[int]bool, 1)
 }
 
 func main() {
@@ -328,8 +328,17 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 		case message.OFFSET_T:
 			// Update your clock
 			updateClockWithOffset(m.Offset.Offset)
+
+		case message.ADDRESS_T:
+			log.Println("[Client] appending address to list of known addresses", m.Address.Address)
+			otherClientsAddress[m.Address.Address] = true
+
+		default:
+			log.Println("[Client] Don't know what to do with ", m)
 		}
+
 	}
+
 }
 
 // ****** User interface  ****** //
@@ -699,7 +708,7 @@ func sendAddresses(period time.Duration, max_send int) {
 				if usr == u {
 					continue
 				}
-				log.Println("Sending address to", usr.Alias)
+				log.Println("[Server]Sending address to", usr.Alias)
 				addr := u.Address.Port
 				m := message.NewAddressMessage(addr)
 				mm, err := xml.Marshal(m)
