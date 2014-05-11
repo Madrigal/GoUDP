@@ -531,9 +531,17 @@ func sendDataToServer(sending chan []byte, confirmation chan []byte) {
 		bytes := <-sending
 		log.Println("[Client] From send data to server ", string(bytes))
 		clientConn.Write(bytes)
-		// TODO Add a timeout here
-		<-confirmation
-		log.Println("[Client] Got confirmation")
+		timeout := make(chan bool, 1)
+		go func() {
+			time.Sleep(1 * time.Second)
+			timeout <- true
+		}()
+		select {
+		case <-confirmation:
+			log.Println("[Client] Got confirmation")
+		case <-timeout:
+			log.Println("[Client] Timeout!")
+		}
 	}
 }
 
