@@ -127,7 +127,7 @@ type ClockOffset struct {
 type AddressMessage struct {
 	XMLName xml.Name `xml:"Root"`
 	Base
-	Address string `xml:"Address"`
+	Address int `xml:"Address"`
 }
 
 // This type will decode an incoming message
@@ -459,7 +459,7 @@ func NewErrorMessage(msg string) ErrorMessage {
 	return message
 }
 
-func NewAddressMessage(addr string) AddressMessage {
+func NewAddressMessage(addr int) AddressMessage {
 	base := Base{Type: ADDRESS}
 	message := AddressMessage{Base: base, Address: addr}
 	return message

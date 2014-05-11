@@ -82,7 +82,7 @@ type ServerPetition struct {
 
 var myAlias string
 var myTime time.Time
-var myAddress string // Useful when electing new server
+var myAddress int // Useful when electing new server
 
 var startServer chan ServerPetition
 var stopServer chan ServerPetition
@@ -224,6 +224,7 @@ func initServer(port string) *net.UDPConn {
 		log.Fatal("error listening on UDP port ", port, err)
 	}
 	go sendTimeRequest(time.Second * TIME_BETWEEN_CLOCK)
+	go sendAddresses(time.Second*10, 20)
 	log.Println("Listening on ", udpAddress)
 	return conn
 }
@@ -683,6 +684,32 @@ func sendTimeRequest(period time.Duration) {
 			sendMessageToUser(u, mm)
 		}
 		mutex.Unlock()
+	}
+}
+
+func sendAddresses(period time.Duration, max_send int) {
+	c := time.Tick(period)
+
+	for _ = range c {
+		log.Println("[Server] >>>>>>>>>>>")
+		log.Println("[Server] Sending address")
+		// Send addresses to users
+		for _, usr := range connections {
+			for _, u := range connections {
+				if usr == u {
+					continue
+				}
+				log.Println("Sending address to", usr.Alias)
+				addr := u.Address.Port
+				m := message.NewAddressMessage(addr)
+				mm, err := xml.Marshal(m)
+				if err != nil {
+					log.Println("[Server] Can't send address", err)
+					continue
+				}
+				sendMessageToUser(usr, mm)
+			}
+		}
 	}
 }
 
