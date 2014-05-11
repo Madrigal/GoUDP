@@ -12,6 +12,13 @@ import (
 
 var myAddress int
 var knownAddresess map[int]bool
+var listenMulticast *net.UDPConn
+var writeMulticast *net.UDPConn
+
+// We will always be listening for new petitions in here.
+// Either you or some other process who sends you an address
+// will trigger a voting.
+// After some time elapses someone will be elected the server
 
 func main() {
 	port := "224.0.1.60:1888"
@@ -31,7 +38,9 @@ func main() {
 	msg := message.NewVoteMessage(myAddress)
 	mm, _ := xml.Marshal(msg)
 	fmt.Println(string(mm))
-	go listen(conn)
+	listenMulticast = conn
+	writeMulticast = lconn
+	go listen(listenMulticast)
 	for {
 		// Sleep 20 seconds to give time to spawn more clients
 		// time.Sleep(time.Second * 10)
@@ -39,7 +48,7 @@ func main() {
 		b := make([]byte, 256)
 		copy(b, txt)
 		check(err)
-		_, err = lconn.WriteToUDP(b, mcaddr)
+		_, err = writeMulticast.WriteToUDP(b, mcaddr)
 		check(err)
 	}
 }
