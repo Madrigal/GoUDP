@@ -84,6 +84,9 @@ var myAlias string
 var myTime time.Time
 var myAddress int // Useful when electing new server
 
+var noServer bool
+var inVotingProcess bool
+
 var startServer chan ServerPetition
 var stopServer chan ServerPetition
 var sendingChannel chan []byte
@@ -292,6 +295,12 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 		switch t {
 		case message.ERROR_T:
 			fmt.Println("Error from server:", m.Error.Message)
+
+		case message.LOGIN_RES_T:
+			// Update your address
+			myAddress = m.Login.Address
+			log.Println("[Client] My address is", myAddress)
+
 		case message.DM_T:
 			msg := m.Direct
 			fmt.Println("Message from ", msg.From, ": ", msg.Message)
@@ -639,6 +648,10 @@ func sendTimeRequest(period time.Duration) {
 		time.AfterFunc(period/2, func() {
 			// Stop getting clocks after n time and send updates
 			log.Println("Stop recieving time")
+			// Sanity check, if no one is here return
+			if len(connections) == 0 {
+				return
+			}
 			areWeGettingClocks = false
 			var sumOfClocks int64
 			var computedCloks int64
@@ -1000,7 +1013,9 @@ func registerUser(who *net.UDPAddr, loginMessage *message.Login) error {
 		users[usr.Alias] = usr
 	}
 	connections[who.String()] = usr
-	fmt.Println("Connections", connections)
+	m := message.NewLoginResponse(who.Port)
+	mm, _ := xml.Marshal(m)
+	sendMessageToUser(usr, mm)
 	return nil
 }
 

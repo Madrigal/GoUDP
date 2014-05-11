@@ -7,34 +7,36 @@ import (
 )
 
 const (
-	LOGIN    = "Login"
-	BROAD    = "Broadcast"
-	DM       = "DirectMessage"
-	GET_CONN = "GetConnected"
-	EXIT     = "Exit"
-	ERROR    = "Error"
-	BLOCK    = "Block"
-	FILE     = "FILE"
-	CLOCK    = "Clock"
-	OFFSET   = "TimeOffset"
-	ADDRESS  = "Address"
+	LOGIN     = "Login"
+	BROAD     = "Broadcast"
+	DM        = "DirectMessage"
+	GET_CONN  = "GetConnected"
+	EXIT      = "Exit"
+	ERROR     = "Error"
+	BLOCK     = "Block"
+	FILE      = "FILE"
+	CLOCK     = "Clock"
+	OFFSET    = "TimeOffset"
+	ADDRESS   = "Address"
+	LOGIN_RES = "LoginResponse"
 )
 
 type Type int
 
 const (
-	UNKNOWN_T  Type = iota
-	ERROR_T    Type = iota
-	LOGIN_T    Type = iota
-	BROAD_T    Type = iota
-	DM_T       Type = iota
-	GET_CONN_T Type = iota
-	BLOCK_T    Type = iota
-	FILE_T     Type = iota
-	CLOCK_T    Type = iota
-	OFFSET_T   Type = iota
-	EXIT_T     Type = iota
-	ADDRESS_T  Type = iota
+	UNKNOWN_T   Type = iota
+	ERROR_T     Type = iota
+	LOGIN_T     Type = iota
+	BROAD_T     Type = iota
+	DM_T        Type = iota
+	GET_CONN_T  Type = iota
+	BLOCK_T     Type = iota
+	FILE_T      Type = iota
+	CLOCK_T     Type = iota
+	OFFSET_T    Type = iota
+	EXIT_T      Type = iota
+	ADDRESS_T   Type = iota
+	LOGIN_RES_T Type = iota
 )
 
 type Base struct {
@@ -46,6 +48,12 @@ type Login struct {
 	XMLName xml.Name `xml:"Root"`
 	Base
 	Nickname string `xml:"Nickname"`
+}
+
+type LoginResponse struct {
+	XMLName xml.Name `xml:"Root"`
+	Base
+	Address int `xml:"address"`
 }
 
 // Message a user sends to server. It covers both
@@ -163,8 +171,10 @@ type ServerPackage struct {
 	Clock     *ClockSyncPetition
 	Offset    *ClockOffset
 	Address   *AddressMessage
+	Login     *LoginResponse
 }
 
+// Decode message FROM the server
 func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
 	var m ServerMessage
 	err := xml.Unmarshal(msg, &m)
@@ -172,6 +182,17 @@ func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
 		return UNKNOWN_T, nil, err
 	}
 	switch m.Type {
+	case LOGIN_RES:
+		var b LoginResponse
+		err := xml.Unmarshal(msg, &b)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Broadcast or direct message malformed")
+		}
+		mp := ServerPackage{
+			Login: &b,
+		}
+		return LOGIN_RES_T, &mp, nil
+
 	case BROAD, DM:
 		var b SMessage
 		err := xml.Unmarshal(msg, &b)
@@ -200,6 +221,7 @@ func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
 		}
 		return GET_CONN_T, &mp, nil
 
+	// TODO think this isn't used
 	case BLOCK:
 		var b Block
 		err := xml.Unmarshal(msg, &b)
@@ -462,6 +484,12 @@ func NewErrorMessage(msg string) ErrorMessage {
 func NewAddressMessage(addr int) AddressMessage {
 	base := Base{Type: ADDRESS}
 	message := AddressMessage{Base: base, Address: addr}
+	return message
+}
+
+func NewLoginResponse(addr int) LoginResponse {
+	base := Base{Type: LOGIN_RES}
+	message := LoginResponse{Base: base, Address: addr}
 	return message
 }
 
