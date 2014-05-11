@@ -17,6 +17,7 @@ const (
 	FILE     = "FILE"
 	CLOCK    = "Clock"
 	OFFSET   = "TimeOffset"
+	ADDRESS  = "Address"
 )
 
 type Type int
@@ -33,6 +34,7 @@ const (
 	CLOCK_T    Type = iota
 	OFFSET_T   Type = iota
 	EXIT_T     Type = iota
+	ADDRESS_T  Type = iota
 )
 
 type Base struct {
@@ -122,6 +124,12 @@ type ClockOffset struct {
 	Offset time.Duration `xml:"offset"`
 }
 
+type AddressMessage struct {
+	XMLName xml.Name `xml:"Root"`
+	Base
+	Address string `xml:"Address"`
+}
+
 // This type will decode an incoming message
 // The UserPackage will hold the actual values
 type UserMessage struct {
@@ -134,6 +142,7 @@ type ServerMessage struct {
 	Data interface{}
 }
 
+// Client-to-server
 type UserPackage struct {
 	Block         *Block
 	Login         *Login
@@ -144,6 +153,7 @@ type UserPackage struct {
 	Clock         *ClockOffset
 }
 
+// Server-to-client
 type ServerPackage struct {
 	Direct    *SMessage
 	Connected *SGetConnected
@@ -152,6 +162,7 @@ type ServerPackage struct {
 	File      *FileMessage
 	Clock     *ClockSyncPetition
 	Offset    *ClockOffset
+	Address   *AddressMessage
 }
 
 func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
@@ -235,6 +246,18 @@ func DecodeServerMessage(msg []byte) (Type, *ServerPackage, error) {
 		}
 
 		return OFFSET_T, &mp, nil
+
+	case ADDRESS:
+		var a AddressMessage
+		err := xml.Unmarshal(msg, &a)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: File message malformed")
+		}
+		sp := ServerPackage{
+			Address: &a,
+		}
+
+		return ADDRESS_T, &sp, nil
 
 	case ERROR:
 		var u ErrorMessage
@@ -433,6 +456,12 @@ func NewSGetConnected(ids []string) SGetConnected {
 func NewErrorMessage(msg string) ErrorMessage {
 	base := Base{Type: ERROR}
 	message := ErrorMessage{Base: base, Message: msg}
+	return message
+}
+
+func NewAddressMessage(addr string) AddressMessage {
+	base := Base{Type: ADDRESS}
+	message := AddressMessage{Base: base, Address: addr}
 	return message
 }
 
