@@ -25,30 +25,30 @@ This is based on IRC, so you will be familiar with most of the commands
 someMessage
 Broadcasts a message to all users. This is the option by default
 
-/NICK SomeNick
-This changes your nickname
+/nick SomeNick
+This changes your nickname. It is necessary at login
 
-/NAMES
+/names
 Gives you the names of all connected users.
 
-/MSG Buddy Hello man
+/msg Buddy Hello man
 Says "Hello man" to the user with the nickname "Buddy"
 
-/SEND Buddy file.jpg
+/send Buddy file.jpg
 Sends file "file.jpg" to the user with the nickname "Buddy"
 
-/BLOCK Buddy
+/block Buddy
 Blocks the user "Buddy" from sending messages to you
 
-/FB I like this day!
-Updates your Facebook status with the message shown
+/twitter I like this day!
+Updates your Twitter status with the message shown
 
-/QUIT
+/quit
 Exits the chat
 
 ## Admin
-/ADMIN start
+/admin start
 Starts a server on this instance
 
-/ADMIN stop
+/admin stop
 Stops the server on this instance
