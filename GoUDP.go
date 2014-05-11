@@ -82,10 +82,13 @@ type ServerPetition struct {
 
 var myAlias string
 var myTime time.Time
+var myAddress string // Useful when electing new server
 
 var startServer chan ServerPetition
 var stopServer chan ServerPetition
 var sendingChannel chan []byte
+
+var otherClientsAddress []string
 
 // Brain rant
 // We need to get several channels
@@ -114,6 +117,7 @@ func init() {
 	stopServer = make(chan ServerPetition, 1)
 	sendingChannel = make(chan []byte)
 	userClocks = make([]clockMessage, 1)
+	otherClientsAddress = make([]string, 1)
 }
 
 func main() {
