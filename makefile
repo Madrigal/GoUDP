@@ -16,3 +16,6 @@ example:
 
 twitter:
 	go run src/examples/twitter.go
+
+election:
+	go run src/examples/election.go

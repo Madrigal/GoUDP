@@ -7,36 +7,40 @@ import (
 )
 
 const (
-	LOGIN     = "Login"
-	BROAD     = "Broadcast"
-	DM        = "DirectMessage"
-	GET_CONN  = "GetConnected"
-	EXIT      = "Exit"
-	ERROR     = "Error"
-	BLOCK     = "Block"
-	FILE      = "FILE"
-	CLOCK     = "Clock"
-	OFFSET    = "TimeOffset"
-	ADDRESS   = "Address"
-	LOGIN_RES = "LoginResponse"
+	LOGIN       = "Login"
+	BROAD       = "Broadcast"
+	DM          = "DirectMessage"
+	GET_CONN    = "GetConnected"
+	EXIT        = "Exit"
+	ERROR       = "Error"
+	BLOCK       = "Block"
+	FILE        = "FILE"
+	CLOCK       = "Clock"
+	OFFSET      = "TimeOffset"
+	ADDRESS     = "Address"
+	LOGIN_RES   = "LoginResponse"
+	VOTE        = "Vote"
+	COORDINATOR = "Coordinator"
 )
 
 type Type int
 
 const (
-	UNKNOWN_T   Type = iota
-	ERROR_T     Type = iota
-	LOGIN_T     Type = iota
-	BROAD_T     Type = iota
-	DM_T        Type = iota
-	GET_CONN_T  Type = iota
-	BLOCK_T     Type = iota
-	FILE_T      Type = iota
-	CLOCK_T     Type = iota
-	OFFSET_T    Type = iota
-	EXIT_T      Type = iota
-	ADDRESS_T   Type = iota
-	LOGIN_RES_T Type = iota
+	UNKNOWN_T     Type = iota
+	ERROR_T       Type = iota
+	LOGIN_T       Type = iota
+	BROAD_T       Type = iota
+	DM_T          Type = iota
+	GET_CONN_T    Type = iota
+	BLOCK_T       Type = iota
+	FILE_T        Type = iota
+	CLOCK_T       Type = iota
+	OFFSET_T      Type = iota
+	EXIT_T        Type = iota
+	ADDRESS_T     Type = iota
+	LOGIN_RES_T   Type = iota
+	VOTE_T        Type = iota
+	COORDINATOR_T Type = iota
 )
 
 type Base struct {
@@ -138,6 +142,19 @@ type AddressMessage struct {
 	Address int `xml:"Address"`
 }
 
+// Election system
+type VoteMessage struct {
+	XMLName xml.Name `xml:"Root"`
+	Base
+	Number int `xml:"Number"` // Because it can just be anything
+}
+
+type CoordinatorMessage struct {
+	XMLName xml.Name `xml:"Root"`
+	Base
+	Address string `xml:"Address"` // The new address to conect to
+}
+
 // This type will decode an incoming message
 // The UserPackage will hold the actual values
 type UserMessage struct {
@@ -146,6 +163,11 @@ type UserMessage struct {
 }
 
 type ServerMessage struct {
+	Base
+	Data interface{}
+}
+
+type ClientToClientMessage struct {
 	Base
 	Data interface{}
 }
@@ -172,6 +194,43 @@ type ServerPackage struct {
 	Offset    *ClockOffset
 	Address   *AddressMessage
 	Login     *LoginResponse
+}
+
+// Client-to-client
+type UserToUserPackage struct {
+	VoteMessage        *VoteMessage
+	CoordinatorMessage *CoordinatorMessage
+}
+
+func DecodeClientToClientMessage(msg []byte) (Type, *UserToUserPackage, error) {
+	var m ClientToClientMessage
+	err := xml.Unmarshal(msg, &m)
+	if err != nil {
+		return UNKNOWN_T, nil, err
+	}
+	switch m.Type {
+	case VOTE:
+		var v VoteMessage
+		err := xml.Unmarshal(msg, &v)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Broadcast or direct message malformed")
+		}
+		uu := UserToUserPackage{
+			VoteMessage: &v,
+		}
+		return VOTE_T, &uu, nil
+	case COORDINATOR:
+		var v CoordinatorMessage
+		err := xml.Unmarshal(msg, &v)
+		if err != nil {
+			return UNKNOWN_T, nil, errors.New("Couldn't decode the message: Broadcast or direct message malformed")
+		}
+		uu := UserToUserPackage{
+			CoordinatorMessage: &v,
+		}
+		return COORDINATOR_T, &uu, nil
+	}
+	return UNKNOWN_T, nil, errors.New("Couldn't decode the message: No matching type")
 }
 
 // Decode message FROM the server
@@ -490,6 +549,17 @@ func NewAddressMessage(addr int) AddressMessage {
 func NewLoginResponse(addr int) LoginResponse {
 	base := Base{Type: LOGIN_RES}
 	message := LoginResponse{Base: base, Address: addr}
+	return message
+}
+
+func NewVoteMessage(num int) VoteMessage {
+	base := Base{Type: VOTE}
+	message := VoteMessage{Base: base, Number: num}
+	return message
+}
+func NewCoordinatorMessage(addr string) CoordinatorMessage {
+	base := Base{Type: COORDINATOR}
+	message := CoordinatorMessage{Base: base, Address: addr}
 	return message
 }
 
