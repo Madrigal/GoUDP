@@ -20,6 +20,7 @@ import (
 
 const (
 	DEFAULT_ADDR        = "127.0.0.1:1200"
+	MULTICAST_PORT      = "224.0.1.60:1888"
 	MAX_USR             = 50000
 	MAX_CONN            = 5000
 	MILIS_BETWEEN_RETRY = 200
@@ -91,6 +92,10 @@ var startServer chan ServerPetition
 var stopServer chan ServerPetition
 var sendingChannel chan []byte
 
+// Thins to look for when electing a new server
+var listenMulticast *net.UDPConn
+var writeMulticast *net.UDPConn
+var multicastAddr *net.UDPAddr
 var otherClientsAddress map[int]bool
 
 // Brain rant
@@ -139,7 +144,33 @@ func main() {
 		startServer <- s
 	}
 
+	// Create client that listens for multicasts
+	laddr, err := net.ResolveUDPAddr("udp", ":0")
+	if err != nil {
+		fmt.Println("Error", err)
+		return
+	}
+	mcaddr, err := net.ResolveUDPAddr("udp", MULTICAST_PORT)
+	if err != nil {
+		fmt.Println("Error", err)
+		return
+	}
+	conn, err := net.ListenMulticastUDP("udp", nil, mcaddr)
+	if err != nil {
+		fmt.Println("Error", err)
+		return
+	}
+	lconn, err := net.ListenUDP("udp", laddr)
+	if err != nil {
+		fmt.Println("Error", err)
+		return
+	}
+
+	listenMulticast = conn
+	writeMulticast = lconn
+	multicastAddr = mcaddr
 	// Always create a client
+	go listenOutage(listenMulticast)
 	client(port, confirmationChan)
 }
 
@@ -177,6 +208,37 @@ func client(port string, confirmation chan []byte) {
 	go handleClient(c, confirmation)
 	go updateClock(&myTime, time.Second*3)
 	getUserInput()
+}
+
+func listenOutage(conn *net.UDPConn) {
+	for {
+		b := make([]byte, 256)
+		_, _, err := conn.ReadFromUDP(b)
+		fmt.Println("read", string(b))
+		t, m, err := message.DecodeClientToClientMessage(b)
+		if err != nil {
+			log.Println("[Client] Can't decode message", string(b))
+		}
+		switch t {
+		case message.VOTE_T:
+			// Start voting
+			if !inVotingProcess {
+				startVotingAlgorithm()
+			}
+			address := m.VoteMessage.Number
+			fmt.Println("Got this address", address)
+			if address != myAddress {
+				// Add Adress to list of known address
+				otherClientsAddress[address] = true
+				fmt.Println("Known address", otherClientsAddress)
+			}
+		case message.COORDINATOR_T:
+			Newaddr := m.CoordinatorMessage.Address
+			fmt.Println("Coordinator", Newaddr)
+			stopVotingProcess()
+		}
+		log.Println("[Client] Got", m)
+	}
 }
 
 // ****** Client time  ****** //
@@ -217,18 +279,18 @@ func serverControl() {
 }
 
 func initServer(port string) *net.UDPConn {
-	log.Println("[Client] Starting server")
+	log.Println("[Server] Starting server")
 	udpAddress, err := net.ResolveUDPAddr("udp4", port)
 	if err != nil {
-		log.Fatal("[Client] error resolving UDP address on ", port, err)
+		log.Fatal("[Server] error resolving UDP address on ", port, err)
 	}
 	conn, err := net.ListenUDP("udp", udpAddress)
 	if err != nil {
-		log.Fatal("[Client] error listening on UDP port ", port, err)
+		log.Fatal("[Server] error listening on UDP port ", port, err)
 	}
 	go sendTimeRequest(time.Second * TIME_BETWEEN_CLOCK)
 	go sendAddresses(time.Second*10, 20)
-	log.Println("[Client] Listening on ", udpAddress)
+	log.Println("[Server] Listening on ", udpAddress)
 	return conn
 }
 
@@ -254,36 +316,50 @@ func killServer() {
 
 func startVotingAlgorithm() {
 	inVotingProcess = true
-	for usr, _ := range otherClientsAddress {
-		sendMessageWithMyPid(usr, myAddress)
-	}
+	broadcastMessageWithMyPid(myAddress)
+
 	// Give some time to collect messages
-	time.Sleep(time.Second * 10)
-	// for _, resp := range votingResponses {
-	// 	// Acknowledege was sent before, don't worry about that
+	c := time.After(time.Second * 10)
+	<-c
+	for addr, _ := range otherClientsAddress {
+		if addr > myAddress {
+			log.Println("[Client] [Voting] Don't start because addr", addr, "is bigger than mine", myAddress)
+			return
+		}
+	}
+	// No one greater responed, we are becoming the server
 
-	// 	if resp.Address > myAddress {
-	// 		// Someone else is becoming the server, don't worry :)
-	// 		return
-	// 	}
-	// }
-	// // No one greater responed, we are becoming the server
-
-	// startBecomingTheServer()
+	startBecomingTheServer()
 }
 
 func startBecomingTheServer() {
 	// ? Send message saying that I'm the new server
+	msga := message.NewCoordinatorMessage(string(myAddress))
+	mmm, _ := xml.Marshal(msga)
+	writeMulticast.WriteToUDP(mmm, multicastAddr)
+	fmt.Println("NOW I AM BECOME DEATH")
 
 	// Start the server
 	s := ServerPetition{GlobalPort}
-	inVotingProcess = false
-	noServer = false
 	startServer <- s
+	stopVotingProcess()
 }
 
-func sendMessageWithMyPid(addr int, myaddr int) {
-	// die
+func stopVotingProcess() {
+	inVotingProcess = false
+	noServer = false
+	for key := range otherClientsAddress {
+		delete(otherClientsAddress, key)
+	}
+}
+
+func broadcastMessageWithMyPid(myaddr int) {
+	msg := message.NewVoteMessage(myaddr)
+	mm, _ := xml.Marshal(msg)
+	_, err := writeMulticast.WriteToUDP(mm, multicastAddr)
+	if err != nil {
+		log.Println("[Client] [On multicast] Error sending myPid", err)
+	}
 }
 
 // ****** Listen messages from the server  ****** //
@@ -708,6 +784,9 @@ func sendTimeRequest(period time.Duration) {
 				}
 				sumOfClocks += c.Timestamp.Unix()
 				computedCloks++
+			}
+			if computedCloks == 0 {
+				return
 			}
 			average := sumOfClocks / computedCloks
 			log.Println("[Server] Clock average", average)
