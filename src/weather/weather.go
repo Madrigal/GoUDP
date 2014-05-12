@@ -2,6 +2,7 @@ package weather
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -14,7 +15,7 @@ type Data struct {
 	Name     string  `json:"name"`
 	Temp     float32 `json:"temp"`
 	Humidity int     `json:"humidity"`
-	Pressure int     `json:"pressure"`
+	Pressure float32 `json:"pressure"`
 	TempMin  float32 `json:"temp_min"`
 	TempMax  float32 `json:"temp_max"`
 }
@@ -40,7 +41,7 @@ type ValidAddresses struct {
 	Main struct {
 		Temp     float32 `json:"temp"`
 		Humidity int     `json:"humidity"`
-		Pressure int     `json:"pressure"`
+		Pressure float32 `json:"pressure"`
 		TempMin  float32 `json:"temp_min"`
 		TempMax  float32 `json:"temp_max"`
 	} `json:"main"`
@@ -73,6 +74,12 @@ func Convert(t ValidAddresses) Weather {
 	return w
 }
 
+func GetStringWeather(city string) string {
+	w := GetWeather(city)
+	return fmt.Sprintf("Temp in %s %f Min: %f Max: %f",
+		w.Name, w.Temp, w.TempMin, w.TempMax)
+}
+
 func GetWeather(city string) Weather {
 	t, err := makeRequest(city)
 	if err != nil {
@@ -85,7 +92,7 @@ func GetWeather(city string) Weather {
 func makeRequest(city string) (*ValidAddresses, error) {
 	request := "http://api.openweathermap.org/data/2.5/weather?q="
 	request = request + city
-	request = request + "&units=metric&mode=json"
+	request = request + "&units=metric"
 	resp, err := http.Get(request)
 	if err != nil {
 		return nil, err
@@ -95,6 +102,7 @@ func makeRequest(city string) (*ValidAddresses, error) {
 	t := &ValidAddresses{}
 	err = json.Unmarshal(body, &t)
 	if err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 	return t, err

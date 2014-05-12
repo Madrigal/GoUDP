@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 	"twitterWrapper"
+	"weather"
 )
 
 const (
@@ -493,6 +494,8 @@ func firstRun(r *bufio.Reader) {
 
 	// FIXME This doesn't check login errors
 	fmt.Println("You are now on the server")
+	fmt.Println("The current temperature is")
+	fmt.Println(weather.GetStringWeather("Guadalajara"))
 	fmt.Println("This is a list of command available")
 	line = "/help"
 	handleUserInput(line)

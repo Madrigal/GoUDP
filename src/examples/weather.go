@@ -9,8 +9,8 @@ import (
 func main() {
 	w := TestStaticData()
 	fmt.Println(w)
-	w = weather.GetWeather("Guadalajara")
-	fmt.Println(w)
+	s := weather.GetStringWeather("Guadalajara")
+	fmt.Println("Weather in GDL", s)
 }
 
 func TestStaticData() weather.Weather {
