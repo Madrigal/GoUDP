@@ -8,12 +8,14 @@ import (
 	"message"
 	"net"
 	"os"
+	"time"
 )
 
 var myAddress int
 var knownAddresess map[int]bool
 var listenMulticast *net.UDPConn
 var writeMulticast *net.UDPConn
+var multicastAddr *net.UDPAddr
 
 // We will always be listening for new petitions in here.
 // Either you or some other process who sends you an address
@@ -40,7 +42,9 @@ func main() {
 	fmt.Println(string(mm))
 	listenMulticast = conn
 	writeMulticast = lconn
+	multicastAddr = mcaddr
 	go listen(listenMulticast)
+	go startVoting()
 	for {
 		// Sleep 20 seconds to give time to spawn more clients
 		// time.Sleep(time.Second * 10)
@@ -78,6 +82,33 @@ func listen(conn *net.UDPConn) {
 		}
 		log.Println("[Client] Got", m)
 	}
+}
+
+func startVoting() {
+	fmt.Println("Start voting!")
+	time.Sleep(time.Second * 10)
+	// Send you adress to all. In this case it really doesn't matter
+	msg := message.NewVoteMessage(myAddress)
+	mm, _ := xml.Marshal(msg)
+	_, err := writeMulticast.WriteToUDP(mm, multicastAddr)
+	check(err)
+
+	// Wait 10 seconds
+	c := time.After(time.Second * 10)
+	<-c
+
+	// Check if we got any address that is bigger
+	for addr, _ := range knownAddresess {
+		if addr > myAddress {
+			return
+		}
+	}
+
+	// Become the server if we are the greatest
+	msga := message.NewCoordinatorMessage(string(myAddress))
+	mmm, _ := xml.Marshal(msga)
+	writeMulticast.WriteToUDP(mmm, multicastAddr)
+	fmt.Println("NOW I AM BECOME DEATH")
 }
 
 func check(err error) {
