@@ -127,7 +127,14 @@ func init() {
 	sendingChannel = make(chan []byte)
 	userClocks = make([]clockMessage, 1)
 	otherClientsAddress = make(map[int]bool, 1)
+}
 
+func main() {
+	portPtr := flag.String("port", DEFAULT_ADDR, "port to bind to")
+	serverPtr := flag.Bool("s", false, "Wheter this instance should become the server")
+	flag.Parse()
+
+	// Start logger
 	f, err := os.OpenFile("testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
@@ -136,12 +143,6 @@ func init() {
 
 	log.SetOutput(f)
 	log.Println("This is a test log entry")
-}
-
-func main() {
-	portPtr := flag.String("port", DEFAULT_ADDR, "port to bind to")
-	serverPtr := flag.Bool("s", false, "Wheter this instance should become the server")
-	flag.Parse()
 
 	shouldBeServer := *serverPtr
 	port := *portPtr
