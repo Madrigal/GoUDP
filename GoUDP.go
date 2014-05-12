@@ -470,8 +470,9 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 // ****** User interface  ****** //
 // getUserInput reads whatever comes from stdin and writes it to a handler
 func getUserInput() {
-	fmt.Println("Put your input!")
 	reader := bufio.NewReader(os.Stdin)
+	// First run is special, so we will treat it as such
+	firstRun(reader)
 	for {
 
 		line, err := reader.ReadString('\n')
@@ -481,6 +482,21 @@ func getUserInput() {
 		}
 		handleUserInput(line)
 	}
+}
+
+func firstRun(r *bufio.Reader) {
+	fmt.Println("Welcome to the chat server. Please type your desired alias")
+	line, _ := r.ReadString('\n')
+	// Send the correct alias and log him in
+	line = "/nick " + line
+	handleUserInput(line)
+
+	// FIXME This doesn't check login errors
+	fmt.Println("You are now on the server")
+	fmt.Println("This is a list of command available")
+	line = "/help"
+	handleUserInput(line)
+	fmt.Println()
 }
 
 // handleUserInput dispatches whatever the user writes
@@ -550,6 +566,9 @@ func handleUserInput(line string) {
 		m := message.NewExit()
 		sendXmlToServer(m)
 
+	case l == "/help":
+		displayHelpMessage()
+
 	case l == "/admin":
 		if length != 2 {
 			fmt.Println("Incorrect arguments")
@@ -571,8 +590,6 @@ func handleUserInput(line string) {
 		m := message.NewBroadcast(line)
 		sendXmlToServer(m)
 	}
-
-	fmt.Println("You wrote", line)
 }
 
 // ****** Client time to server ****** //
@@ -655,6 +672,19 @@ func writeToFile(filename string, payload string) {
 func closeFile() {
 	// I think there is nothing to do here
 	fmt.Println("Download succesful")
+}
+
+// ******** Client helper  ******** //
+func displayHelpMessage() {
+	fmt.Println("Any message that you write is going to be sent to all connected users. ")
+	fmt.Println("However, there are some special commands that you can use. ")
+	fmt.Println("/help - Displays this message")
+	fmt.Println("/msg Buddy Hello man - sends \"Hello man\" to \"Buddy\"")
+	fmt.Println("/send Buddy file.jpg - sends file \"file.jpg\" to \"Buddy\"")
+	fmt.Println("/names - gives you the names of all connected users.")
+	fmt.Println("/block Buddy - Blocks \"Buddy\" from sending messages to you")
+	fmt.Println("/twitter I like this day! - updates your Twitter status with the message shown")
+	fmt.Println("/quit - Exits the chat")
 }
 
 // ******** Server functions  ******** //

@@ -2,6 +2,7 @@ PROJECT_ROOT := $(shell pwd)
 export GO_PROJECT_ROOT=$(PROJECT_ROOT)
 VENDOR_PATH  := $(PROJECT_ROOT)/vendor
 GOPATH := $(PROJECT_ROOT):$(VENDOR_PATH)
+export $GOPATH
 
 all: server
 
