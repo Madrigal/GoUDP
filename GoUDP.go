@@ -198,6 +198,9 @@ func client(port string, confirmation chan []byte) {
 	var conn *net.UDPConn
 	for ; retries > 0; retries-- {
 		con, err = net.Dial("udp", port)
+		if con == nil {
+			continue
+		}
 		conn = con.(*net.UDPConn)
 		if err == nil {
 			break
@@ -362,6 +365,8 @@ func stopVotingProcess() {
 	for key := range otherClientsAddress {
 		delete(otherClientsAddress, key)
 	}
+	// Send your alias again
+	handleUserInput("/nick " + myAlias)
 }
 
 func broadcastMessageWithMyPid(myaddr int) {
@@ -459,7 +464,7 @@ func handleClient(c <-chan []byte, confirmation chan<- []byte) {
 
 		case message.ADDRESS_T:
 			log.Println("[Client] appending address to list of known addresses", m.Address.Address)
-			otherClientsAddress[m.Address.Address] = true
+			// otherClientsAddress[m.Address.Address] = true
 
 		default:
 			log.Println("[Client] Don't know what to do with ", m)
@@ -496,7 +501,16 @@ func firstRun(r *bufio.Reader) {
 	// FIXME This doesn't check login errors
 	fmt.Println("You are now on the server")
 	fmt.Println("The current temperature is")
-	fmt.Println(weather.GetStringWeather("Guadalajara"))
+	b := make(chan string, 1)
+	b <- weather.GetStringWeather("Guadalajara")
+	var res string
+	select {
+	case s := <-b:
+		res = s
+	case <-time.After(5 * time.Second):
+		res = "Timeout"
+	}
+	fmt.Println(res)
 	fmt.Println("This is a list of command available")
 	line = "/help"
 	handleUserInput(line)

@@ -7,10 +7,10 @@ export $GOPATH
 all: server
 
 server:
-	go run GoUDP.go -s
+	go run GoUDP.go -s -port=$(PORT)
 
 client:
-	go run GoUDP.go -port=127.0.0.1:1200
+	go run GoUDP.go -port=$(PORT)
 
 example:
 	go run src/examples/weather.go

@@ -76,8 +76,9 @@ func Convert(t ValidAddresses) Weather {
 
 func GetStringWeather(city string) string {
 	w := GetWeather(city)
-	return fmt.Sprintf("Temp in %s %f Min: %f Max: %f",
+	s := fmt.Sprintf("Temp in %s %f Min: %f Max: %f",
 		w.Name, w.Temp, w.TempMin, w.TempMax)
+	return s
 }
 
 func GetWeather(city string) Weather {
