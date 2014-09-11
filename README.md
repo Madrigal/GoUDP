@@ -58,3 +58,7 @@ Starts a server on this instance
 
 /admin stop
 Stops the server on this instance
+
+## Dependencies
+https://github.com/xiam/twitter
+https://github.com/gosexy/yaml
