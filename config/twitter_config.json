@@ -1,0 +1,10 @@
+{
+   "app": {
+     "user": "TEST",
+     "pass": "TEST"
+   },
+   "user": {
+     "token": "TEST",
+     "secret": "TEST"
+   }
+ }
